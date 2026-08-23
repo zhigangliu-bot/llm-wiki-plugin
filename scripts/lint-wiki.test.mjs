@@ -1113,3 +1113,22 @@ describe('parseCliArgs', () => {
     assert.equal(args.unknown, undefined);
   });
 });
+
+/* ===================== main 默认值:无 --vault → process.cwd() ===================== */
+
+describe('main 默认 vault 行为', () => {
+  // 通过 parseCliArgs + 同样的 fallback 表达式验证 main 的行为意图:
+  //   const vaultRoot = args.vaultRoot || process.cwd();
+  test('无 --vault → vaultRoot 退到 process.cwd()', () => {
+    const args = parseCliArgs(['node', 'lint-wiki.mjs']);
+    const vaultRoot = args.vaultRoot || process.cwd();
+    assert.equal(vaultRoot, process.cwd());
+  });
+
+  test('有 --vault → 不退到 cwd', () => {
+    const args = parseCliArgs(['node', 'lint-wiki.mjs', '--vault=D:/my-vault']);
+    const vaultRoot = args.vaultRoot || process.cwd();
+    assert.notEqual(vaultRoot, process.cwd());
+    assert.ok(vaultRoot.endsWith('my-vault'));
+  });
+});
