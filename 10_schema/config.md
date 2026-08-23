@@ -17,8 +17,6 @@ Inbox/              新资料暂存区
 00_模板/            笔记模板（读书笔记 / 日记 / 会议纪要 / 每周固定任务）
 10_schema/          Wiki schema 配置（本文件位置）
 附件文件夹/         当前附件目录
-.claude/skills/     项目级 Claude Code 配置
-scripts/            Node 自动化脚本（主脚本 + 同名 .test.mjs + 设计文档）
 ```
 
 三层结构互不替代：
@@ -35,14 +33,14 @@ scripts/            Node 自动化脚本（主脚本 + 同名 .test.mjs + 设计
 
 ### Frontmatter 强制字段
 
-| 字段          | 类型      | 说明                                                             |
-| ------------- | --------- | ---------------------------------------------------------------- |
-| `文章:`     | string    | 文章标题                                                         |
-| `作者:`     | string    | 作者 / 会议 / 演讲人                                             |
-| `创建时间:` | ISO date  | 入库日期（系统填）                                               |
-| `tags:`     | array     | 4 轴（domain / layer / phase / maturity），仅从 [词表 §2](../../00_模板/标签词表.md) 枚举取值 |
-| `状态:`     | boolean   | `false` = 占位或待审；`true` = 已审入库（merge 语义见 §9-bis）  |
-| `source:`   | wiki-link | `[[01_知识库/...]]` 链回 PDF                                   |
+| 字段          | 类型      | 说明                                                                                         |
+| ------------- | --------- | -------------------------------------------------------------------------------------------- |
+| `文章:`     | string    | 文章标题                                                                                     |
+| `作者:`     | string    | 作者 / 会议 / 演讲人                                                                         |
+| `创建时间:` | ISO date  | 入库日期（系统填）                                                                           |
+| `tags:`     | array     | 4 轴（domain / layer / phase / maturity），仅从[词表 §2](../../00_模板/标签词表.md) 枚举取值 |
+| `状态:`     | boolean   | `false` = 占位或待审；`true` = 已审入库（merge 语义见 §9-bis）                          |
+| `source:`   | wiki-link | `[[01_知识库/...]]` 链回 PDF                                                               |
 
 ### 正文固定 4 段（顺序固定，不可增减）
 
@@ -62,6 +60,7 @@ scripts/            Node 自动化脚本（主脚本 + 同名 .test.mjs + 设计
 > **权威源见 [`00_模板/标签词表.md §2`](../../00_模板/标签词表.md)。** 本文件不再维护副本；新增/修改枚举请改词表。
 >
 > 三套枚举的指向：
+>
 > - 4 轴（domain / layer / phase / maturity）— 词表 §2
 > - entity 子类（7 个）— 词表 §3
 > - concept 子类（7 个）— 词表 §4
@@ -87,14 +86,14 @@ scripts/            Node 自动化脚本（主脚本 + 同名 .test.mjs + 设计
 
 ### Frontmatter 强制字段
 
-| 字段          | 类型     | 说明                                |
-| ------------- | -------- | ----------------------------------- |
-| `type:`     | enum     | 字面必须`entity`                  |
-| `tags:`     | array    | 实体子类枚举（仅从 [词表 §3](../../00_模板/标签词表.md) 取值） |
-| `sources:`  | array    | 反向链回 source 页的 wiki-link 数组 |
-| `created:`  | ISO date | 创建日期（系统填）                  |
-| `updated:`  | ISO date | 最后一次机器 Edit 正文的日期（系统填,新建即与 created 同值） |
-| `aliases:`  | array    | **必填 ≥ 1 项**——别名 / 译名 / 缩写 |
+| 字段          | 类型     | 说明                                                                                                                         |
+| ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `type:`     | enum     | 字面必须`entity`                                                                                                           |
+| `tags:`     | array    | 实体子类枚举（仅从[词表 §3](../../00_模板/标签词表.md) 取值）                                                                |
+| `sources:`  | array    | 反向链回 source 页的 wiki-link 数组                                                                                          |
+| `created:`  | ISO date | 创建日期（系统填）                                                                                                           |
+| `updated:`  | ISO date | 最后一次机器 Edit 正文的日期（系统填,新建即与 created 同值）                                                                 |
+| `aliases:`  | array    | **必填 ≥ 1 项**——别名 / 译名 / 缩写                                                                                 |
 | `reviewed:` | boolean  | 可选，`true` = 已人工 review 正文(机器遇到 `reviewed: true` 时**跳过正文改写**,只 append sources/aliases/Mentions) |
 
 ### 实体子类枚举
@@ -149,14 +148,14 @@ linter 检查项:`scripts/lint-wiki.mjs` 的 `quote-style` 类别。迁移工具
 
 ### Frontmatter 强制字段
 
-| 字段          | 类型     | 说明                                |
-| ------------- | -------- | ----------------------------------- |
-| `type:`     | enum     | 字面必须`concept`                 |
-| `tags:`     | array    | 概念子类枚举（仅从 [词表 §4](../../00_模板/标签词表.md) 取值） |
-| `sources:`  | array    | 反向链回 source 页的 wiki-link 数组 |
-| `created:`  | ISO date | 系统填                              |
-| `updated:`  | ISO date | 最后一次机器 Edit 正文的日期（系统填,新建即与 created 同值） |
-| `aliases:`  | array    | **必填 ≥ 1 项**——别名 / 译名 |
+| 字段          | 类型     | 说明                                                                                                                         |
+| ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `type:`     | enum     | 字面必须`concept`                                                                                                          |
+| `tags:`     | array    | 概念子类枚举（仅从[词表 §4](../../00_模板/标签词表.md) 取值）                                                                |
+| `sources:`  | array    | 反向链回 source 页的 wiki-link 数组                                                                                          |
+| `created:`  | ISO date | 系统填                                                                                                                       |
+| `updated:`  | ISO date | 最后一次机器 Edit 正文的日期（系统填,新建即与 created 同值）                                                                 |
+| `aliases:`  | array    | **必填 ≥ 1 项**——别名 / 译名                                                                                        |
 | `reviewed:` | boolean  | 可选，`true` = 已人工 review 正文(机器遇到 `reviewed: true` 时**跳过正文改写**,只 append sources/aliases/Mentions) |
 
 ### 概念子类枚举
@@ -228,19 +227,19 @@ linter 检查项:`scripts/lint-wiki.mjs` 的 `quote-style` 类别。迁移工具
 
 ### 字段对照
 
-| 字段 | 层级 | 含义 | 谁填 |
-| --- | --- | --- | --- |
-| `reviewed: true` | entity / concept | **正文已人工审核**——机器遇到时跳过正文改写,只 append sources/aliases/Mentions | 用户人工翻 true |
-| `状态: false` / `true` | source | source 是否已审入库（合并语义见 §9-bis） | 用户人工翻 true |
+| 字段                       | 层级             | 含义                                                                                  | 谁填            |
+| -------------------------- | ---------------- | ------------------------------------------------------------------------------------- | --------------- |
+| `reviewed: true`         | entity / concept | **正文已人工审核**——机器遇到时跳过正文改写,只 append sources/aliases/Mentions | 用户人工翻 true |
+| `状态: false` / `true` | source           | source 是否已审入库（合并语义见 §9-bis）                                             | 用户人工翻 true |
 
 ### 机器行为规则（entity / concept）
 
-| 触发条件 | 机器行为 |
-| --- | --- |
-| ingest 命中已有 slug + `reviewed: true` | 仅 append `sources:` / `aliases:` / `## Mentions in Source`,**不**改写 5 段/6 段正文 |
-| ingest 命中已有 slug + `reviewed` 缺失或 `reviewed: false` | append `sources:` / `aliases:` / `## Mentions in Source`,**直接 Edit** 5 段/6 段正文(LLM 重写 + 补充) |
-| ingest 命中但 source 已在 `sources:` 列表中 | early return,跳过本次 append,记日志 |
-| 改后正文长度 < 改前 50% | abort 并报"正文缩水过大",不写盘 |
+| 触发条件                                                      | 机器行为                                                                                                         |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| ingest 命中已有 slug +`reviewed: true`                      | 仅 append`sources:` / `aliases:` / `## Mentions in Source`,**不**改写 5 段/6 段正文                  |
+| ingest 命中已有 slug +`reviewed` 缺失或 `reviewed: false` | append`sources:` / `aliases:` / `## Mentions in Source`,**直接 Edit** 5 段/6 段正文(LLM 重写 + 补充) |
+| ingest 命中但 source 已在`sources:` 列表中                  | early return,跳过本次 append,记日志                                                                              |
+| 改后正文长度 < 改前 50%                                       | abort 并报"正文缩水过大",不写盘                                                                                  |
 
 ### 增长告警
 
@@ -322,37 +321,37 @@ obsidian-collacting sub agent 重跑 ingest → 只 append，不覆盖：
 
 ### source 笔记（02_读书笔记/）
 
-| 检查项         | 阈值                                       | 触发动作                                 |
-| -------------- | ------------------------------------------ | ---------------------------------------- |
-| Missing meta   | frontmatter 缺 `tags` 或 `source`         | lint-wiki 报 missing-meta                |
-| Orphan         | 无入向 wiki 链接且出向 < 3                 | lint-wiki 报 orphan（叶节点阈值放宽）    |
-| Stale          | `状态: false` 且 `创建时间` > 90 天        | lint-wiki 报 stale（已审入库不报）       |
-| Tag drift      | tags 不在 [词表](../../00_模板/标签词表.md) §2 枚举                  | lint-wiki 报 tag-drift（最高优先级）     |
-| Duplicate      | `文章` 字段相同                            | lint-wiki 报 duplicate（待人工合并）     |
-| Contradictions | 笔记末尾出现 `## Contradictions` 段        | lint-wiki 报 contradictions              |
+| 检查项         | 阈值                                               | 触发动作                              |
+| -------------- | -------------------------------------------------- | ------------------------------------- |
+| Missing meta   | frontmatter 缺`tags` 或 `source`               | lint-wiki 报 missing-meta             |
+| Orphan         | 无入向 wiki 链接且出向 < 3                         | lint-wiki 报 orphan（叶节点阈值放宽） |
+| Stale          | `状态: false` 且 `创建时间` > 90 天            | lint-wiki 报 stale（已审入库不报）    |
+| Tag drift      | tags 不在[词表](../../00_模板/标签词表.md) §2 枚举 | lint-wiki 报 tag-drift（最高优先级）  |
+| Duplicate      | `文章` 字段相同                                  | lint-wiki 报 duplicate（待人工合并）  |
+| Contradictions | 笔记末尾出现`## Contradictions` 段               | lint-wiki 报 contradictions           |
 
 ### entity 页（11_entities/）
 
-| 检查项                 | 阈值                                                    | 触发动作                              |
-| ---------------------- | ------------------------------------------------------- | ------------------------------------- |
-| Entity missing aliases | frontmatter 缺 `aliases` 或为空                         | lint-wiki 报 entity-missing-aliases   |
-| Entity tag drift       | tags 不在词表 §3 entity 子类枚举                        | lint-wiki 报 entity-tag-drift         |
-| Entity name clash      | 同目录 normalize（去空格/连字符/下划线）后同名          | lint-wiki 报 entity-name-clash        |
+| 检查项                 | 阈值                                           | 触发动作                            |
+| ---------------------- | ---------------------------------------------- | ----------------------------------- |
+| Entity missing aliases | frontmatter 缺`aliases` 或为空               | lint-wiki 报 entity-missing-aliases |
+| Entity tag drift       | tags 不在词表 §3 entity 子类枚举              | lint-wiki 报 entity-tag-drift       |
+| Entity name clash      | 同目录 normalize（去空格/连字符/下划线）后同名 | lint-wiki 报 entity-name-clash      |
 
 ### concept 页（12_concepts/）
 
-| 检查项                  | 阈值                                                  | 触发动作                              |
-| ----------------------- | ----------------------------------------------------- | ------------------------------------- |
-| Concept missing aliases | frontmatter 缺 `aliases` 或为空                       | lint-wiki 报 concept-missing-aliases  |
-| Concept tag drift       | tags 不在词表 §4 concept 子类枚举                     | lint-wiki 报 concept-tag-drift        |
-| Concept name clash      | 同目录 normalize 后同名                               | lint-wiki 报 concept-name-clash       |
+| 检查项                  | 阈值                               | 触发动作                             |
+| ----------------------- | ---------------------------------- | ------------------------------------ |
+| Concept missing aliases | frontmatter 缺`aliases` 或为空   | lint-wiki 报 concept-missing-aliases |
+| Concept tag drift       | tags 不在词表 §4 concept 子类枚举 | lint-wiki 报 concept-tag-drift       |
+| Concept name clash      | 同目录 normalize 后同名            | lint-wiki 报 concept-name-clash      |
 
 ### 跨目录 / 共享
 
-| 检查项              | 阈值                                                       | 触发动作                            |
-| ------------------- | ---------------------------------------------------------- | ----------------------------------- |
-| Cross-dir dup       | entity 与 concept 跨目录 normalize 同名                   | lint-wiki 报 entity-cross-dir-dup   |
-| Sources too many    | entity / concept 的 `sources.length` ≥ 50                  | lint-wiki 报 sources-too-many（warning，建议合并） |
+| 检查项           | 阈值                                        | 触发动作                                           |
+| ---------------- | ------------------------------------------- | -------------------------------------------------- |
+| Cross-dir dup    | entity 与 concept 跨目录 normalize 同名     | lint-wiki 报 entity-cross-dir-dup                  |
+| Sources too many | entity / concept 的`sources.length` ≥ 50 | lint-wiki 报 sources-too-many（warning，建议合并） |
 
 ---
 
@@ -379,15 +378,15 @@ CLAUDE.md 铁律 #3：对话中产生的高价值问答必须**提议**写回 `0
 
 ### 13.1 通用格式
 
-| 字段 | 约定 |
-|---|---|
-| 标题级别 | `## YYYY-MM-DD  简述`（H2，日期与内容**双空格**分隔） |
-| 倒序 | 最新在顶部；上一行用 `---` 视觉分隔 |
-| 起首 | `**触发**` 单星号，写触发原因 / 用户原话 |
-| 后续 | `**改动范围**` / `**行为**` / `**commit**` / `**测试结果**` / `**YAGNI 边界**` 等小节按需组合 |
-| 路径引用 | `[[wiki 链接]]` 或反引号相对路径 |
-| commit 列表 | `- \`<hash>\` 描述` 单行短句 |
-| 工具调用 | `node scripts/<name>.mjs --flags` 全文内嵌代码 |
+| 字段        | 约定                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------- |
+| 标题级别    | `## YYYY-MM-DD  简述`（H2，日期与内容**双空格**分隔）                                           |
+| 倒序        | 最新在顶部；上一行用`---` 视觉分隔                                                                    |
+| 起首        | `**触发**` 单星号，写触发原因 / 用户原话                                                              |
+| 后续        | `**改动范围**` / `**行为**` / `**commit**` / `**测试结果**` / `**YAGNI 边界**` 等小节按需组合 |
+| 路径引用    | `[[wiki 链接]]` 或反引号相对路径                                                                      |
+| commit 列表 | `- \`<hash></hash>\` 描述` 单行短句                                                                   |
+| 工具调用    | `node scripts/<name>.mjs --flags` 全文内嵌代码                                                        |
 
 ### 13.2 模板
 
