@@ -112,7 +112,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com> 由 Claude 自动追加�
                   │ 写 vault（仅好答案）
                   ▼
        ┌─────────────────────────────────────┐
-       │ 03_问答区/ + Log.md §13.5 llm-wiki-query 归档 │
+       │ 03_问答区/ + Log.md §12.4 llm-wiki-query 归档 │
        └─────────────────────────────────────┘
 ```
 
@@ -142,7 +142,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com> 由 Claude 自动追加�
 
 ## Vault 改动流水（硬性约束）
 
-任一 skill 对 vault 笔记（`02_读书笔记/` `11_entities/` `12_concepts/`）有写操作，**或** lint-wiki 完成一次扫描 → 主对话必须在**同次 commit** 内 append `Log.md` 一条（详见 `10_schema/config.md` §3 / §13）。
+任一 skill 对 vault 笔记（`02_读书笔记/` `11_entities/` `12_concepts/`）有写操作，**或** lint-wiki 完成一次扫描 → 主对话必须在**同次 commit** 内 append `Log.md` 一条（详见 `10_schema/config.md` §12）。
 
 详情见 `00_模板/CLAUDE_Template.md`。
 
@@ -165,7 +165,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com> 由 Claude 自动追加�
 | `skills/obsidian-collacting/SKILL.md` | 高 | 本仓 `00_模板/标签词表.md` §1-§5 |
 | `skills/lint-wiki/SKILL.md` | 中 | `00_模板/标签词表.md` + `scripts/lint-wiki.mjs` 头注释 |
 | `skills/knowledge-graph-sync/SKILL.md` | 低 | `10_schema/config.md` |
-| `skills/llm-wiki-query/SKILL.md` | 中 | `10_schema/config.md §1 §13.5` + README「可选：qmd 接入」 |
+| `skills/llm-wiki-query/SKILL.md` | 中 | `10_schema/config.md §1 §12.4` + README「可选：qmd 接入」 |
 | `skills/llm-wiki-plugin-init/SKILL.md` | 低 | `scripts/init-vault.mjs` |
 | `scripts/*.mjs` | 中 | 顶部 JSDoc 契约 + 对应 `.test.mjs` |
 | `00_模板/标签词表.md` | 中 | 一旦改 → 触发 Log.md append（`10_schema/config.md` §3） |

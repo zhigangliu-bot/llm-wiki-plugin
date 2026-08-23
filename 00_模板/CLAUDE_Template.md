@@ -22,7 +22,7 @@
 反向引用调用这个skill: knowledge-graph-sync
 查 wiki / 问答（qmd MCP 召回 + Grep 降级）调用这个skill: llm-wiki-query
 初始化 vault / 搭建脚手架调用这个skill: llm-wiki-plugin-init
-vault 改动流水：上述 5 个 skill 任一对 vault 笔记（`02_读书笔记/`、`11_entities/`、`12_concepts/`、`03_问答区/`）有写操作，或 lint-wiki 完成一次扫描 → 主对话必须在同次 commit 内 append `Log.md` 一条（详见 `10_schema/myconfig.md` §3 / §13）
+vault 改动流水：上述 5 个 skill 任一对 vault 笔记（`02_读书笔记/`、`11_entities/`、`12_concepts/`、`03_问答区/`）有写操作，或 lint-wiki 完成一次扫描 → 主对话必须在同次 commit 内 append `Log.md` 一条（详见 `10_schema/myconfig.md` §12）
 5 skill 协作：
 - `## Related Pages` 段互斥——obsidian-collacting 自动处理新 ingest 笔记，kg-sync 处理存量旧笔记
 - `03_问答区/` 由 llm-wiki-query 独占写入——obsidian-collacting / lint-wiki / kg-sync 不读不写

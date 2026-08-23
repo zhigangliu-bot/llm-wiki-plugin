@@ -66,7 +66,7 @@ description: 整理、Inbox、web clipper
   - §3/§4 子类表格追加一行
 - 用户回「跳过」→ 不动词表；该 sub agent 打的自由 tag 留给 lint-wiki 后续捕获
 
-9. **强制步骤 — 追加 Log**：在仓库根 `Log.md` 末尾 append 本次操作的 Log 条目（必须、与主任务同次 commit 完成）。格式严格按 `10_schema/config.md §13.3` 要求。
+9. **强制步骤 — 追加 Log**：在仓库根 `Log.md` 末尾 append 本次操作的 Log 条目（必须、与主任务同次 commit 完成）。格式严格按 `10_schema/config.md §12.3` 要求。
 
 # 两层 sub agent 工作流
 
