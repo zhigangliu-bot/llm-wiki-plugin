@@ -44,8 +44,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const VAULT = path.resolve(__dirname, '..');
 
 /* ===================== 纯函数（可测试） ===================== */
 
@@ -813,7 +811,7 @@ export { parseCliArgs };
 
 async function main() {
   const args = parseCliArgs(process.argv);
-  const vaultRoot = args.vaultRoot || VAULT;
+  const vaultRoot = args.vaultRoot || process.cwd();
   const { report, exitCode } = await runLint({ vaultRoot, staleDays: args.staleDays });
   if (args.out) {
     await fs.writeFile(path.resolve(args.out), report);
