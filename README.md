@@ -40,7 +40,7 @@ git pull --ff-only
 | `knowledge-graph-sync` | knowledge graph / 同步反向引用 / 知识图谱同步 | 手动触发；只补存量 `02_读书笔记/` 的反向引用 `## Related Pages`，不读 PDF、不写正文 |
 | `lint-wiki` | lint / healthcheck / 检查 vault / 扫一遍笔记 / 跑 lint | 只读不写；扫 source/entity/concept 14 类健康问题到 `scripts/_lint-report.md` |
 | `obsidian-collacting` | 整理 / Inbox / web clipper | `Inbox/` 双源（PDF + web clipper md）→ 归档到 `01_知识库/` → 生成 `02_读书笔记/` 模板 → 写正文 → 抽 entity/concept |
-| `query` | 查 wiki / 问个问题 / 问一下 / query / 查 vault / 知识库里有没有 X / 我问个问题 | 显式触发；用 qmd MCP 召回 + 引用合成答案；好答案自动归档到 `03_问答区/` |
+| `llm-wiki-query` | 查 wiki / 问个问题 / 问一下 / query / 查 vault / 知识库里有没有 X / 我问个问题 | 显式触发；用 qmd MCP 召回 + 引用合成答案；好答案自动归档到 `03_问答区/` |
 
 ## 内含资产
 
@@ -90,7 +90,7 @@ node --test scripts/lint-wiki.test.mjs   # 82 cases
 触发词：初始化 vault、初始化知识库、新建 vault、cold start、init vault
 
 行为：
-- 创建 8 个 wiki 目录（`01_知识库/` `02_读书笔记/` `11_entities/` `12_concepts/` `Inbox/` `00_模板/` `10_schema/` `附件文件夹/`）+ `03_问答区/`（query skill 的归档区）
+- 创建 8 个 wiki 目录（`01_知识库/` `02_读书笔记/` `11_entities/` `12_concepts/` `Inbox/` `00_模板/` `10_schema/` `附件文件夹/`）+ `03_问答区/`（llm-wiki-query skill 的归档区）
 - 创建 2 个顶层 md 占位（`Index.md` `Log.md`）+ `Inbox/.gitkeep` + `03_问答区/_cross/.gitkeep`
 - 拷贝 3 个 plugin 资产到 vault 同名位置（已存在则跳过,**不覆盖**）
 - 把 `00_模板/CLAUDE_Template.md` 内容追加到 vault/CLAUDE.md 末尾（`<!-- llm-wiki-plugin-init:begin/end -->` 包裹,幂等）
@@ -99,9 +99,9 @@ node --test scripts/lint-wiki.test.mjs   # 82 cases
 
 详见 spec：[myself-marketplace 仓 spec](https://github.com/zhigangliu-bot/myself-marketplace/blob/main/docs/superpowers/specs/2026-08-23-llm-wiki-plugin-init-design.md)
 
-## 可选：qmd 接入（query skill 的搜索引擎）
+## 可选：qmd 接入（llm-wiki-query skill 的搜索引擎）
 
-`query` skill 默认走 **qmd MCP server**（混合 BM25 + 向量搜索 + LLM 重排，全部本地）。未装 qmd 时自动降级为 LLM `Grep` + `Read`（小 vault 也够用）。
+`llm-wiki-query` skill 默认走 **qmd MCP server**（混合 BM25 + 向量搜索 + LLM 重排，全部本地）。未装 qmd 时自动降级为 LLM `Grep` + `Read`（小 vault 也够用）。
 
 **手动接入步骤**：
 

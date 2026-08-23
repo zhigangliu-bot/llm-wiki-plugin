@@ -9,7 +9,7 @@
 ```
 01_知识库/          原始资料（PDF / 研报，按主题分子目录）—— source 物理载体
 02_读书笔记/        从 01_知识库 中的 PDF 自动生成的阅读笔记—— source 逻辑表示
-03_问答区/          查询产物（query skill 归档的问答笔记）—— 只读型
+03_问答区/          查询产物（llm-wiki-query skill 归档的问答笔记）—— 只读型
 11_entities/        实体页（人 / 组织 / 产品 / 项目 / 事件 / 地点）
 12_concepts/        概念页（理论 / 方法 / 标准 / 术语 / 现象 / 领域）
 Index.md            资料索引表（路由表，LLM 优先读此区）
@@ -409,12 +409,12 @@ CLAUDE.md 铁律 #3：对话中产生的高价值问答必须**提议**写回 `0
 - **knowledge-graph-sync**：`触发` / `改动范围`（存量 source 笔记 ## Related Pages 段数 + entity/concept 新建/append 数）/ `行为`（Phase 1-4 简述）/ `commit`
 - **lint-wiki**：`触发` / `扫描笔记数`（X 篇）/ `问题总数`（N 处 + 5 类问题分项数）/ `报告路径`（`scripts/_lint-report.md`）/ `commit`
 
-### 13.5 query 最小条目（query 触发时）
+### 13.5 llm-wiki-query 最小条目（llm-wiki-query 触发时）
 
 - **触发**：用户明示「<触发词原文>」
 - **答案路径**：`[[03_问答区/<主题>/<slug>.md]]`（若触发了 Q1-Q5）；若未触发归档则标 `未归档`
 - **归档触发**：列出 Q1 / Q2 / Q3 / Q4 / Q5 命中项（如 Q1 + Q5）；未归档时写「未触发（无 Q 命中）」
-- **召回方式**：`qmd-mcp` / `Grep 降级`（必填；query skill 优先 qmd，qmd 未装时降级 Grep+Read）
+- **召回方式**：`qmd-mcp` / `Grep 降级`（必填；llm-wiki-query skill 优先 qmd，qmd 未装时降级 Grep+Read）
 - **commit**：`<hash>` 新增 / 续答 QA 笔记
 
 ### 13.4 不触发本规范的情形

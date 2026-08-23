@@ -1,5 +1,5 @@
 ---
-name: query
+name: llm-wiki-query
 description: 查 wiki、问一下、query、查 vault、知识库里有没有 X、我问个问题
 ---
 
@@ -28,7 +28,7 @@ description: 查 wiki、问一下、query、查 vault、知识库里有没有 X�
 
 - 「查 wiki」「问个问题」「问一下」「query」「查 vault」「知识库里有没有 X」「我问个问题」
 
-未含触发词 → **不**走 query 流程，按 CLAUDE 铁律 #2 普通回答即可。
+未含触发词 → **不**走 llm-wiki-query 流程，按 CLAUDE 铁律 #2 普通回答即可。
 
 ## 阶段 B：查询阶段（无 vault 写操作）
 
@@ -184,7 +184,7 @@ tags:
 - `回答日期:` YYYY-MM-DD
 - `tags:` 4 轴，规则同 source 笔记（限 §2 枚举）
 - `状态:` checkbox 字段，bare boolean（不带引号）——与 source 同义，`false` = 待审
-- `召回方式:` 记录本次 query 用了哪条路径——`qmd-mcp` 或 `Grep 降级`
+- `召回方式:` 记录本次 llm-wiki-query 用了哪条路径——`qmd-mcp` 或 `Grep 降级`
 
 **正文 4 段**：问题 / 回答（含 `### 引用来源` 子段，必填）/ 相关实体 / 相关概念
 
@@ -192,7 +192,7 @@ tags:
 
 ### D4：append Log.md
 
-按 `10_schema/config.md §13.1` 通用格式 + `§13.5` query 最小条目（含 `召回方式` 字段）：
+按 `10_schema/config.md §13.1` 通用格式 + `§13.5` llm-wiki-query 最小条目（含 `召回方式` 字段）：
 
 ```markdown
 ## YYYY-MM-DD  query  <主题摘要>
@@ -235,10 +235,10 @@ tags:
 
 | Skill | 互斥语义 |
 |---|---|
-| `obsidian-collacting` | query 写 `03_问答区/`，obsidian-collacting 写 `02_读书笔记/` + `11_entities/` + `12_concepts/`，目录不重叠。**互不调用**。 |
-| `lint-wiki` | query 不调 lint-wiki。本期不新增 QA 检查项（YAGNI）。 |
-| `knowledge-graph-sync` | query 不调 kg-sync。kg-sync 只处理 `02_读书笔记/` 存量笔记。 |
-| `llm-wiki-plugin-init` | init 时创建 `03_问答区/` 目录；query 不调 init。 |
+| `obsidian-collacting` | llm-wiki-query 写 `03_问答区/`，obsidian-collacting 写 `02_读书笔记/` + `11_entities/` + `12_concepts/`，目录不重叠。**互不调用**。 |
+| `lint-wiki` | llm-wiki-query 不调 lint-wiki。本期不新增 QA 检查项（YAGNI）。 |
+| `knowledge-graph-sync` | llm-wiki-query 不调 kg-sync。kg-sync 只处理 `02_读书笔记/` 存量笔记。 |
+| `llm-wiki-plugin-init` | init 时创建 `03_问答区/` 目录；llm-wiki-query 不调 init。 |
 
 # 维护
 
@@ -250,7 +250,7 @@ tags:
 
 | # | 场景 | 预期 |
 |---|---|---|
-| T1 | 7 个触发词每个匹配一次 | query 流程启动 |
+| T1 | 7 个触发词每个匹配一次 | llm-wiki-query 流程启动 |
 | T2 | vault 有相关内容 → 答案含 wiki-link | 主对话输出含 `[[02_读书笔记/...]]` |
 | T3 | Q1-Q5 全部 0 命中 → 不写 03_问答区/ | 仅输出答案，无归档动作 |
 | T4 | Q1 命中 → 写 03_问答区/ + append Log.md | 新文件存在，Log 新增一行 |
