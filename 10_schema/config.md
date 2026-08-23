@@ -410,11 +410,11 @@ CLAUDE.md 铁律 #3：对话中产生的高价值问答必须**提议**写回 `0
 - **lint-wiki**：`触发` / `扫描笔记数`（X 篇）/ `问题总数`（N 处 + 5 类问题分项数）/ `报告路径`（`scripts/_lint-report.md`）/ `commit`
 - **llm-wiki-query**：`触发` / `答案路径` / `归档触发` / `召回方式` / `commit` — 字段定义见 §13.5
 
-### 13.5 llm-wiki-query 最小条目（llm-wiki-query 触发时）
+### 13.5 llm-wiki-query 最小条目（仅触发归档时写）
 
 - **触发**：用户明示「<触发词原文>」
-- **答案路径**：`[[03_问答区/<主题>/<slug>.md]]`（若触发了 Q1-Q5）；若未触发归档则标 `未归档`
-- **归档触发**：列出 Q1 / Q2 / Q3 / Q4 / Q5 命中项（如 Q1 + Q5）；未归档时写「未触发（无 Q 命中）」
+- **答案路径**：`[[03_问答区/<主题>/<slug>.md]]`
+- **归档触发**：列出 Q1 / Q2 / Q3 / Q4 / Q5 命中项（如 Q1 + Q5）
 - **召回方式**：`qmd-mcp` / `Grep 降级`（必填；llm-wiki-query skill 优先 qmd，qmd 未装时降级 Grep+Read）
 - **commit**：`<hash>` 新增 / 续答 QA 笔记
 
@@ -424,3 +424,4 @@ CLAUDE.md 铁律 #3：对话中产生的高价值问答必须**提议**写回 `0
 - `scripts/*.mjs` / `scripts/_lint-report.md` 等脚本 / 报告文件改动（不属 vault 笔记）
 - `Index.md` 更新（由 obsidian-collacting 主 Log 覆盖）
 - 人工行为（手翻 `状态:` false→true、纯文档查阅）
+- **`llm-wiki-query` 未触发归档**（无 Q 命中、仅口头回答）——不回写 vault 就不写 Log
