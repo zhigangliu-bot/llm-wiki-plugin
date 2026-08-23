@@ -142,15 +142,15 @@ describe('copyIfMissing', () => {
 });
 
 describe('runInit (integration)', () => {
-  test('empty vault: 8 dirs + 3 placeholders + 3 assets + CLAUDE.md created', async () => {
+  test('empty vault: 9 dirs + 4 placeholders + 4 assets + CLAUDE.md created', async () => {
     const vault = await makeVault('r1');
     const report = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
     assert.equal(report.exitCode, 0);
-    assert.equal(report.counters.dirsCreated, 8);
+    assert.equal(report.counters.dirsCreated, 9);
     assert.equal(report.counters.dirsSkipped, 0);
-    assert.equal(report.counters.filesCopied, 3);
+    assert.equal(report.counters.filesCopied, 4);
     assert.equal(report.counters.filesSkipped, 0);
-    assert.equal(report.counters.placeholdersCreated, 3);
+    assert.equal(report.counters.placeholdersCreated, 4);
     assert.equal(report.counters.placeholdersSkipped, 0);
     assert.equal(report.claudeMd.status, 'created');
     assert.equal(report.errors.length, 0);
@@ -165,11 +165,11 @@ describe('runInit (integration)', () => {
 
     const report = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
     assert.equal(report.exitCode, 0);
-    assert.equal(report.counters.dirsCreated, 6);    // 8 - 2 已存在 (01_知识库 + 00_模板 都被预创建了)
+    assert.equal(report.counters.dirsCreated, 7);    // 9 - 2 已存在 (01_知识库 + 00_模板 都被预创建了)
     assert.equal(report.counters.dirsSkipped, 2);
-    assert.equal(report.counters.filesCopied, 2);    // 3 - 1 已存在 (读书笔记模板.md 已存在)
+    assert.equal(report.counters.filesCopied, 3);    // 4 - 1 已存在 (读书笔记模板.md 已存在)
     assert.equal(report.counters.filesSkipped, 1);
-    assert.equal(report.counters.placeholdersCreated, 2); // 3 - 1 (Index.md 已存在)
+    assert.equal(report.counters.placeholdersCreated, 3); // 4 - 1 (Index.md 已存在)
     assert.equal(report.claudeMd.status, 'created');
     assert.equal(await readFile(join(vault, '00_模板/读书笔记模板.md'), 'utf8'), 'USER CONTENT');
   });
@@ -207,12 +207,12 @@ describe('runInit (integration)', () => {
     // 第二次跑
     const r2 = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
     assert.equal(r2.claudeMd.status, 'already-injected', 'second run should report already-injected');
-    assert.equal(r2.counters.dirsCreated, 0);  // 8 个都已存在
-    assert.equal(r2.counters.dirsSkipped, 8);
-    assert.equal(r2.counters.filesCopied, 0);  // 3 个都已存在
-    assert.equal(r2.counters.filesSkipped, 3);
-    assert.equal(r2.counters.placeholdersCreated, 0);  // 3 个都已存在
-    assert.equal(r2.counters.placeholdersSkipped, 3);
+    assert.equal(r2.counters.dirsCreated, 0);  // 9 个都已存在
+    assert.equal(r2.counters.dirsSkipped, 9);
+    assert.equal(r2.counters.filesCopied, 0);  // 4 个都已存在
+    assert.equal(r2.counters.filesSkipped, 4);
+    assert.equal(r2.counters.placeholdersCreated, 0);  // 4 个都已存在
+    assert.equal(r2.counters.placeholdersSkipped, 4);
     assert.equal(r2.errors.length, 0);
     assert.equal(r2.exitCode, 0);
 
