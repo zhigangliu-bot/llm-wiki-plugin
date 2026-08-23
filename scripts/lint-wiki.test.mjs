@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import * as path from 'node:path';
 
 import {
   parseFrontmatter,
@@ -33,6 +34,7 @@ import {
   checkQuoteStyle,
   walkSafe,
   buildVocabSuggestions,
+  parseCliArgs,
 } from './lint-wiki.mjs';
 
 /* ===================== parseFrontmatter ===================== */
@@ -1062,5 +1064,52 @@ see [[d1]]
     assert.ok(/## Vocab Suggestions/.test(report), '报告应含 Vocab Suggestions 节');
     assert.ok(/domain\/newarea/.test(report), '候选值应在表中');
     assert.ok(/§2 domain/.test(report), '桶标签应出现');
+  });
+});
+
+/* ===================== parseCliArgs ===================== */
+
+describe('parseCliArgs', () => {
+  test('默认参数:staleDays=90, out=null, vaultRoot=null', () => {
+    const argv = ['node', 'lint-wiki.mjs'];
+    const args = parseCliArgs(argv);
+    assert.equal(args.staleDays, 90);
+    assert.equal(args.out, null);
+    assert.equal(args.vaultRoot, null);
+  });
+
+  test('--stale-days=30 解析为数字', () => {
+    const argv = ['node', 'lint-wiki.mjs', '--stale-days=30'];
+    const args = parseCliArgs(argv);
+    assert.equal(args.staleDays, 30);
+  });
+
+  test('--out=path 解析为字符串', () => {
+    const argv = ['node', 'lint-wiki.mjs', '--out=scripts/_lint-report.md'];
+    const args = parseCliArgs(argv);
+    assert.equal(args.out, 'scripts/_lint-report.md');
+  });
+
+  test('--vault=D:/my-vault 解析为绝对路径', () => {
+    const argv = ['node', 'lint-wiki.mjs', '--vault=D:/my-vault'];
+    const args = parseCliArgs(argv);
+    assert.ok(args.vaultRoot.endsWith('my-vault'), `vaultRoot 应以 my-vault 结尾,实际: ${args.vaultRoot}`);
+    assert.ok(path.isAbsolute(args.vaultRoot), 'vaultRoot 应为绝对路径');
+  });
+
+  test('组合多个参数', () => {
+    const argv = ['node', 'lint-wiki.mjs', '--stale-days=60', '--vault=E:/v', '--out=out.md'];
+    const args = parseCliArgs(argv);
+    assert.equal(args.staleDays, 60);
+    assert.equal(args.out, 'out.md');
+    assert.ok(args.vaultRoot.endsWith('v'));
+  });
+
+  test('未知参数被忽略', () => {
+    const argv = ['node', 'lint-wiki.mjs', '--unknown=foo', '--vault=G:/v'];
+    const args = parseCliArgs(argv);
+    assert.equal(args.vaultRoot.endsWith('v'), true);
+    // unknown 应被忽略,不应挂到 args 上
+    assert.equal(args.unknown, undefined);
   });
 });
