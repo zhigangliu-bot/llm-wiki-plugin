@@ -61,6 +61,22 @@ node --test scripts/lint-wiki.test.mjs   # 82 cases
 
 源 vault 路径（开发参考）：`F:\zhigangliu_lib\mynotes`
 
+## Skill: `llm-wiki-plugin-init`（新增 v0.1）
+
+冷启动初始化：**给 vault 一句话触发词，1 份控制台报告** 完成。
+
+触发词：初始化 vault、初始化知识库、新建 vault、cold start
+
+行为：
+- 创建 8 个 wiki 目录（`01_知识库/` `02_读书笔记/` `11_entities/` `12_concepts/` `Inbox/` `00_模板/` `10_schema/` `附件文件夹/`）
+- 创建 2 个顶层 md 占位（`Index.md` `Log.md`）+ `Inbox/.gitkeep`
+- 拷贝 3 个 plugin 资产到 vault 同名位置（已存在则跳过,**不覆盖**）
+- 把 `00_模板/CLAUDE_Template.md` 内容追加到 vault/CLAUDE.md 末尾（`<!-- llm-wiki-plugin-init:begin/end -->` 包裹,幂等）
+
+幂等可重复跑,vault 已部分初始化时只输出"已存在"。
+
+详见 spec：[`docs/superpowers/specs/2026-08-23-llm-wiki-plugin-init-design.md`](docs/superpowers/specs/2026-08-23-llm-wiki-plugin-init-design.md)
+
 ## License
 
 MIT
