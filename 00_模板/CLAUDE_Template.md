@@ -9,10 +9,7 @@
 - **回答技术问题前必须先检索仓库**（`01_知识库/` + `02_读书笔记/`，必要时扩到其他目录），结合仓库已有内容作答，引用具体笔记（`[[wiki链接]]`），再补充通用知识。
   检索优先级：`02_读书笔记/` > `01_知识库/` > `04_会议记录/` > `03_日记/`。
   若仓库无相关内容，必须明确说明「仓库无相关笔记」再做通用回答，不得把通用知识伪装成仓库内容。
-- **File Back 软规则（Karpathy LLM Wiki 模式）**：对话中产生的高价值问答（汽车 EE 架构 / SDV / AUTOSAR / 智驾 / AI 等仓库主题）→ **必须提议**写回 `02_读书笔记/`（建议命名 `<主题>-<一句话>.md` 或追加到既有笔记末尾），但**必须由用户显式确认后才可写入**。禁止自动写。
-  触发判断：答案 ≥ 3 个事实点 / 含架构图或决策树 / 跨多篇既有笔记综合 / 用户追问 2 轮以上——任一满足即触发提议。
-  提议话术：`「本次回答含 N 个可复用事实点，建议写回 wiki（如 `<路径>`）。是否写回？输入「写」我立刻写。」`
-  与既有铁律 #2 的关系：先检索仓库（只读）→ 再回答（产生新内容）→ 最后判断是否值得回写（File Back）。三步走，不可跳过。
+- **File Back 兜底（非 llm-wiki-query 场景）**：普通对话（非「查 wiki / 问答」触发词）中产生的高价值问答，主对话**必须提议**写回 `02_读书笔记/`（建议命名 `<主题>-<一句话>.md` 或追加到既有笔记末尾），由用户显式确认后才可写入。query 场景下的归档已由 `llm-wiki-query` skill 全自动处理，**不**走此兜底。
 
 ## 身份
 
@@ -24,8 +21,10 @@
 健康检查（5 类问题：missing-meta / orphan / stale / tag-drift / duplicate）调用这个skill: lint-wiki
 反向引用调用这个skill: knowledge-graph-sync
 查 wiki / 问答（qmd MCP 召回 + Grep 降级）调用这个skill: llm-wiki-query
+初始化 vault / 搭建脚手架调用这个skill: llm-wiki-plugin-init
 vault 改动流水：上述 5 个 skill 任一对 vault 笔记（`02_读书笔记/`、`11_entities/`、`12_concepts/`、`03_问答区/`）有写操作，或 lint-wiki 完成一次扫描 → 主对话必须在同次 commit 内 append `Log.md` 一条（详见 `10_schema/myconfig.md` §3 / §13）
-4 skill 协作：
+5 skill 协作：
 - `## Related Pages` 段互斥——obsidian-collacting 自动处理新 ingest 笔记，kg-sync 处理存量旧笔记
 - `03_问答区/` 由 llm-wiki-query 独占写入——obsidian-collacting / lint-wiki / kg-sync 不读不写
-- llm-wiki-query 与其它 3 个 skill 互不调用
+- 5 个 skill 互相不调用，全部由主对话按需调度
+- `llm-wiki-plugin-init` 只在新 vault 引导 / 重置脚手架时运行一次，不与其它 4 个 skill 并发；运行后由用户决定是否激活后续 skill
