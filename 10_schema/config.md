@@ -78,7 +78,7 @@ Inbox/              新资料暂存区
 - entity / concept `tags:` 单值，限对应子类枚举（词表 §3 / §4）
 - 写入工具：obsidian-collacting sub agent 首次入库；knowledge-graph-sync 只读不改
 - 漂移检查：lint-wiki 引用词表 §2/§3/§4 枚举值，发现词表外值即报 tag-drift
-- 操作流水：obsidian-collacting / knowledge-graph-sync / lint-wiki 任一对 `02_读书笔记/`、`11_entities/`、`12_concepts/` 有写操作，或 lint-wiki 完成一次扫描 → 主对话必须在同次 commit 内 append `Log.md` 一条（格式见 §13）。3 skill 互不调用、各自独立收尾
+- 操作流水：obsidian-collacting / knowledge-graph-sync / lint-wiki / llm-wiki-query 任一收尾 → 主对话必须在同次 commit 内 append `Log.md` 一条（格式见 §13）。4 skill 各自独立收尾
 
 ---
 
@@ -376,7 +376,7 @@ CLAUDE.md 铁律 #3：对话中产生的高价值问答必须**提议**写回 `0
 
 ## 13. Log.md Append 格式
 
-本节定义仓库根 `Log.md` 的 append 格式。`obsidian-collacting` / `knowledge-graph-sync` / `lint-wiki` 任一收尾，主对话必须按本格式 append 一条（触发条件见 §3）。
+本节定义仓库根 `Log.md` 的 append 格式。`obsidian-collacting` / `knowledge-graph-sync` / `lint-wiki` / `llm-wiki-query` 任一收尾，主对话必须按本格式 append 一条（触发条件见 §3）。
 
 ### 13.1 通用格式
 
@@ -403,11 +403,12 @@ CLAUDE.md 铁律 #3：对话中产生的高价值问答必须**提议**写回 `0
 - **lint 验收**：<如适用>
 ```
 
-### 13.3 3 skill 各自的最小条目
+### 13.3 4 skill 各自的最小条目
 
 - **obsidian-collacting**：`触发` / `改动范围`（Inbox 移入 + 02_读书笔记 新增 + 11_entities/12_concepts 新增/append + Index.md 追加）/ `行为`（按主题归档 + sub agent 写笔记 + 反链补全）/ `commit` / `YAGNI 边界`
 - **knowledge-graph-sync**：`触发` / `改动范围`（存量 source 笔记 ## Related Pages 段数 + entity/concept 新建/append 数）/ `行为`（Phase 1-4 简述）/ `commit`
 - **lint-wiki**：`触发` / `扫描笔记数`（X 篇）/ `问题总数`（N 处 + 5 类问题分项数）/ `报告路径`（`scripts/_lint-report.md`）/ `commit`
+- **llm-wiki-query**：`触发` / `答案路径` / `归档触发` / `召回方式` / `commit` — 字段定义见 §13.5
 
 ### 13.5 llm-wiki-query 最小条目（llm-wiki-query 触发时）
 
@@ -419,7 +420,7 @@ CLAUDE.md 铁律 #3：对话中产生的高价值问答必须**提议**写回 `0
 
 ### 13.4 不触发本规范的情形
 
-- 单纯修改 3 skill 自身的 `SKILL.md`（走 git commit message 记，不重复写 Log）
+- 单纯修改 4 skill 自身的 `SKILL.md`（走 git commit message 记，不重复写 Log）
 - `scripts/*.mjs` / `scripts/_lint-report.md` 等脚本 / 报告文件改动（不属 vault 笔记）
 - `Index.md` 更新（由 obsidian-collacting 主 Log 覆盖）
 - 人工行为（手翻 `状态:` false→true、纯文档查阅）
