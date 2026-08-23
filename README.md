@@ -12,6 +12,27 @@ Obsidian 知识库的 3 个 Claude Code skill 包。
 
 或在 Claude Code 中 `/plugin > Discover` 浏览 marketplace 后安装。
 
+## Auto-Update
+
+This plugin auto-updates from GitHub on every Claude Code startup via a `SessionStart` hook (matcher: `startup`). The hook runs `git pull --ff-only` against the plugin's local cache copy, so you always have the latest version without manually reinstalling.
+
+**When the hook fires:**
+- ✅ **Update available** → pulls fast-forward and prints `✓ llm-wiki-plugin updated: aaaaaaa..bbbbbbb`. Claude will surface this in your next conversation.
+- ⚠ **Local changes conflict** → prints warning, leaves local alone (non-fast-forward safe).
+- ⚠ **Network down** → silent fallback, prints warning, session continues normally.
+- **(silent)** **Already up-to-date** → no output.
+
+The hook is **async** and **never blocks session start**. Exit code is always 0.
+
+**Disable auto-update:**
+Edit `hooks/hooks.json` in the installed plugin cache (`~/.claude/plugins/cache/myself-marketplace/llm-wiki-plugin/<version>/hooks/hooks.json`) or comment out the hook.
+
+**Manual update:**
+```bash
+cd ~/.claude/plugins/cache/myself-marketplace/llm-wiki-plugin/<version>
+git pull --ff-only
+```
+
 ## 三个 skill 定位
 
 | Skill | 触发词 | 做什么 |
