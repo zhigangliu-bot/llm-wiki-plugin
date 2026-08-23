@@ -8,7 +8,7 @@
  */
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, rm, readFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, readFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -226,10 +226,10 @@ describe('runInit (integration)', () => {
     const report = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
     assert.equal(report.exitCode, 0);
     // 03_问答区/ 目录存在
-    const qaDirStat = await (await import('node:fs/promises')).stat(join(vault, '03_问答区'));
+    const qaDirStat = await stat(join(vault, '03_问答区'));
     assert.ok(qaDirStat.isDirectory(), '03_问答区/ must be a directory');
     // _cross/.gitkeep 占位存在
-    const keepStat = await (await import('node:fs/promises')).stat(join(vault, '03_问答区/_cross/.gitkeep'));
+    const keepStat = await stat(join(vault, '03_问答区/_cross/.gitkeep'));
     assert.ok(keepStat.isFile(), '03_问答区/_cross/.gitkeep must be a file');
   });
 });
