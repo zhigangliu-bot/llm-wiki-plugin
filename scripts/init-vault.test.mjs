@@ -142,15 +142,15 @@ describe('copyIfMissing', () => {
 });
 
 describe('runInit (integration)', () => {
-  test('empty vault: 9 dirs + 4 placeholders + 4 assets + CLAUDE.md created', async () => {
+  test('empty vault: 10 dirs + 5 placeholders + 4 assets + CLAUDE.md created', async () => {
     const vault = await makeVault('r1');
     const report = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
     assert.equal(report.exitCode, 0);
-    assert.equal(report.counters.dirsCreated, 9);
+    assert.equal(report.counters.dirsCreated, 10);
     assert.equal(report.counters.dirsSkipped, 0);
     assert.equal(report.counters.filesCopied, 4);
     assert.equal(report.counters.filesSkipped, 0);
-    assert.equal(report.counters.placeholdersCreated, 4);
+    assert.equal(report.counters.placeholdersCreated, 5);
     assert.equal(report.counters.placeholdersSkipped, 0);
     assert.equal(report.claudeMd.status, 'created');
     assert.equal(report.errors.length, 0);
@@ -165,11 +165,11 @@ describe('runInit (integration)', () => {
 
     const report = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
     assert.equal(report.exitCode, 0);
-    assert.equal(report.counters.dirsCreated, 7);    // 9 - 2 已存在 (01_知识库 + 00_模板 都被预创建了)
+    assert.equal(report.counters.dirsCreated, 8);    // 10 - 2 已存在 (01_知识库 + 00_模板 都被预创建了)
     assert.equal(report.counters.dirsSkipped, 2);
     assert.equal(report.counters.filesCopied, 3);    // 4 - 1 已存在 (读书笔记模板.md 已存在)
     assert.equal(report.counters.filesSkipped, 1);
-    assert.equal(report.counters.placeholdersCreated, 3); // 4 - 1 (Index.md 已存在)
+    assert.equal(report.counters.placeholdersCreated, 4); // 5 - 1 (Index.md 已存在)
     assert.equal(report.claudeMd.status, 'created');
     assert.equal(await readFile(join(vault, '00_模板/读书笔记模板.md'), 'utf8'), 'USER CONTENT');
   });
@@ -207,18 +207,30 @@ describe('runInit (integration)', () => {
     // 第二次跑
     const r2 = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
     assert.equal(r2.claudeMd.status, 'already-injected', 'second run should report already-injected');
-    assert.equal(r2.counters.dirsCreated, 0);  // 9 个都已存在
-    assert.equal(r2.counters.dirsSkipped, 9);
+    assert.equal(r2.counters.dirsCreated, 0);  // 10 个都已存在
+    assert.equal(r2.counters.dirsSkipped, 10);
     assert.equal(r2.counters.filesCopied, 0);  // 4 个都已存在
     assert.equal(r2.counters.filesSkipped, 4);
-    assert.equal(r2.counters.placeholdersCreated, 0);  // 4 个都已存在
-    assert.equal(r2.counters.placeholdersSkipped, 4);
+    assert.equal(r2.counters.placeholdersCreated, 0);  // 5 个都已存在
+    assert.equal(r2.counters.placeholdersSkipped, 5);
     assert.equal(r2.errors.length, 0);
     assert.equal(r2.exitCode, 0);
 
     // 关键:CLAUDE.md 字节数必须不变
     const size2 = (await readFile(claudePath, 'utf8')).length;
     assert.equal(size2, size1, 'CLAUDE.md must not grow on second run');
+  });
+
+  test('03_问答区/ + _cross/.gitkeep created on empty vault', async () => {
+    const vault = await makeVault('r6');
+    const report = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
+    assert.equal(report.exitCode, 0);
+    // 03_问答区/ 目录存在
+    const qaDirStat = await (await import('node:fs/promises')).stat(join(vault, '03_问答区'));
+    assert.ok(qaDirStat.isDirectory(), '03_问答区/ must be a directory');
+    // _cross/.gitkeep 占位存在
+    const keepStat = await (await import('node:fs/promises')).stat(join(vault, '03_问答区/_cross/.gitkeep'));
+    assert.ok(keepStat.isFile(), '03_问答区/_cross/.gitkeep must be a file');
   });
 });
 
