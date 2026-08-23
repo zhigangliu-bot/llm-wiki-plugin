@@ -151,6 +151,7 @@ export async function injectClaudeMd(vaultRoot, templatePath) {
 export const DIRECTORIES = [
   '01_知识库',
   '02_读书笔记',
+  '03_问答区',
   '11_entities',
   '12_concepts',
   'Inbox',
@@ -164,6 +165,7 @@ export const TOP_LEVEL_MD = ['Index.md', 'Log.md'];
 export const PLACEHOLDER_FILES = [
   'Inbox/.gitkeep',
   'Inbox/web_clipper/.gitkeep',
+  '03_问答区/_cross/.gitkeep',
 ];
 
 /* ===================== runInit 集成函数 ===================== */
