@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # 仓库性质
 
-Claude Code **plugin 仓**（不是 marketplace 注册表）。本仓提供 3 个 skill（`knowledge-graph-sync` / `lint-wiki` / `obsidian-collacting`）+ 1 个 init skill（`llm-wiki-plugin-init`）+ 4 个 Node.js 脚本 + 1 个 SessionStart hook。所有资产自包含、随 plugin 一起分发，vault 用户无需单独下载。
+Claude Code **plugin 仓**（不是 marketplace 注册表）。本仓提供 4 个 skill（`knowledge-graph-sync` / `lint-wiki` / `obsidian-collacting` / `query`）+ 1 个 init skill（`llm-wiki-plugin-init`）+ 4 个 Node.js 脚本 + 1 个 SessionStart hook。所有资产自包含、随 plugin 一起分发，vault 用户无需单独下载。
 
 ## 跟 marketplace 仓的关系
 
@@ -67,7 +67,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com> 由 Claude 自动追加�
 
 # 架构（big picture）
 
-## 三 skill 协作模型
+## 四 skill 协作模型
 
 ```
                   ┌─────────────────────────────────┐
@@ -97,9 +97,26 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com> 由 Claude 自动追加�
    │ • 写 _lint-report  │    │ • 处理 obsidian-collacting │
    │ • Vocab Suggestions│    │   漏的反向引用             │
    └────────────────────┘    └──────────────────────────┘
+       ┌─────────────────────────────────────┐
+       │ 02_读书笔记/ + 11_entities/ + 12_concepts/ │
+       └────────────────┬────────────────────┘
+                        │ qmd 优先 / Grep 降级
+                        ▼
+       ┌─────────────────────────────────────┐
+       │  query                                │
+       │  • 显式触发（7 个触发词）             │
+       │  • qmd MCP 召回 + 引用合成答案        │
+       │  • 未装 qmd → 降级 Grep+Read         │
+       │  • Q1-Q5 自检 → 自动归档到 03_问答区/ │
+       └──────────┬───────────────────────────┘
+                  │ 写 vault（仅好答案）
+                  ▼
+       ┌─────────────────────────────────────┐
+       │ 03_问答区/ + Log.md §13.5 query 归档 │
+       └─────────────────────────────────────┘
 ```
 
-**互斥规则**：`## Related Pages` 段由 obsidian-collacting 自动处理 ingest 笔记，kg-sync 只补存量旧笔记。3 skill 互不调用。
+**互斥规则**：`## Related Pages` 段由 obsidian-collacting 自动处理 ingest 笔记，kg-sync 只补存量旧笔记。query 与 obsidian-collacting / lint-wiki / knowledge-graph-sync 互不调用。
 
 ## 资产分层（plugin 自包含）
 
@@ -148,6 +165,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com> 由 Claude 自动追加�
 | `skills/obsidian-collacting/SKILL.md` | 高 | 本仓 `00_模板/标签词表.md` §1-§5 |
 | `skills/lint-wiki/SKILL.md` | 中 | `00_模板/标签词表.md` + `scripts/lint-wiki.mjs` 头注释 |
 | `skills/knowledge-graph-sync/SKILL.md` | 低 | `10_schema/config.md` |
+| `skills/query/SKILL.md` | 中 | `10_schema/config.md §1 §13.5` + README「可选：qmd 接入」 |
 | `skills/llm-wiki-plugin-init/SKILL.md` | 低 | `scripts/init-vault.mjs` |
 | `scripts/*.mjs` | 中 | 顶部 JSDoc 契约 + 对应 `.test.mjs` |
 | `00_模板/标签词表.md` | 中 | 一旦改 → 触发 Log.md append（`10_schema/config.md` §3） |
