@@ -30,7 +30,7 @@ llm-wiki-plugin/
 │   ├── lint-wiki.test.mjs      # lint-wiki 单元测试 (82 cases)
 │   └── sync-pdf-notes.mjs      # obsidian-collacting 同步 PDF 笔记
 ├── 10_schema/
-│   └── myconfig.md             # §4 entity / §5 concept / §10 verbatim 规则
+│   └── config.md             # §4 entity / §5 concept / §10 verbatim 规则
 └── 00_模板/
     ├── 读书笔记模板.md         # 02_读书笔记/ 模板
     └── 标签词表.md             # §2/§3/§4 词表
@@ -42,9 +42,9 @@ llm-wiki-plugin/
 
 | Skill | 必需资产（plugin 内） |
 | --- | --- |
-| `knowledge-graph-sync` | `10_schema/myconfig.md`、`00_模板/标签词表.md` |
+| `knowledge-graph-sync` | `10_schema/config.md`、`00_模板/标签词表.md` |
 | `lint-wiki` | `00_模板/标签词表.md` |
-| `obsidian-collacting` | `00_模板/读书笔记模板.md`、`00_模板/标签词表.md`、`10_schema/myconfig.md`、`scripts/sync-pdf-notes.mjs` |
+| `obsidian-collacting` | `00_模板/读书笔记模板.md`、`00_模板/标签词表.md`、`10_schema/config.md`、`scripts/sync-pdf-notes.mjs` |
 
 > ⚠️ 缺 schema/模板时 skill 会失败（lint-wiki 会自动跳过 tag-drift 检查；其它两个会直接报错）。
 

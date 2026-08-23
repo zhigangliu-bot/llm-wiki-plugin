@@ -29,7 +29,7 @@ description: knowledge graph、同步反向引用、知识图谱同步
 
 ## Phase 1：扫描存量 source 笔记
 
-列出 `02_读书笔记/**/*.md`，**只处理末尾没有 `## Related Pages` 段的**。entity/concept 模板与子类枚举按 `10_schema/myconfig.md §4/§5` + `00_模板/标签词表.md §3/§4`。
+列出 `02_读书笔记/**/*.md`，**只处理末尾没有 `## Related Pages` 段的**。entity/concept 模板与子类枚举按 `10_schema/config.md §4/§5` + `00_模板/标签词表.md §3/§4`。
 
 ## Phase 2：抽取实体和概念
 
@@ -44,11 +44,11 @@ description: knowledge graph、同步反向引用、知识图谱同步
 
 对每个抽取的实体/概念：
 
-1. 不存在 → 按 myconfig §4 / §5 模板新建；frontmatter `reviewed:` 留空（保持缺失 = 机器可改正文）；`tags:` 从词表 §3 / §4 选
+1. 不存在 → 按 config §4 / §5 模板新建；frontmatter `reviewed:` 留空（保持缺失 = 机器可改正文）；`tags:` 从词表 §3 / §4 选
 2. 存在 + `reviewed: true` → 只 append `sources:` + `## Mentions in Source` 段。**必须用 Edit 工具读后修改，禁止 Write 全量覆盖**——保证最小变更与 idempotency
 3. 存在 + `reviewed` 缺失或 `reviewed: false` → 直接 Edit 5/6 段正文（LLM 重写 + 补充），append `sources:` / `aliases:` / `## Mentions in Source`，**不动 `reviewed` 字段**
 
-verbatim 引用规则（myconfig §10）：
+verbatim 引用规则（config §10）：
 
 - 原 PDF 原文片段，**不翻译、不意译**
 - 每条引用必须带 source wiki-link
@@ -79,7 +79,7 @@ verbatim 引用规则（myconfig §10）：
 3. 跳过多少篇（已有 `## Related Pages` 段）
 4. 新建 / 追加了多少 entity/concept 页
 5. 是否有存量笔记未归入任何实体/概念（人工 review）
-6. 提示主对话：本次 kg-sync 须在同次 commit 内 append `Log.md` 一条（格式见 `10_schema/myconfig.md` §13.3 kg-sync 最小条目）
+6. 提示主对话：本次 kg-sync 须在同次 commit 内 append `Log.md` 一条（格式见 `10_schema/config.md` §13.3 kg-sync 最小条目）
 
 # 注意事项
 

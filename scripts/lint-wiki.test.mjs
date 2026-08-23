@@ -604,7 +604,7 @@ describe('checkContradictions', () => {
   });
 });
 
-describe('checkQuoteStyle (v0.5 myconfig §4)', () => {
+describe('checkQuoteStyle (v0.5 config §4)', () => {
   test('pass: 标量字段全部带双引号 → 违规列表为空', () => {
     const fm = '文章: "X"\n作者: "Y"\n创建时间: "2026-08-23"\n状态: "false"\nsource: "[[link]]"\n';
     assert.deepEqual(checkQuoteStyle(fm), []);

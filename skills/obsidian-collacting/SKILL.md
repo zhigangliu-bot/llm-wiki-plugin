@@ -71,7 +71,7 @@ sub agent prompt 必须包含：
 - 笔记结构：`摘要` + `重点摘录` + `我的思考` + `总结：最有收获的一句话`
 - 写作风格：汽车软件架构师视角，指出"工程价值 / 盲点 / 实操建议"
 - frontmatter + tags 规则：按 `00_模板/读书笔记模板.md` + `00_模板/标签词表.md` §1/§2
-- entity / concept `tags:` 取值见 [`00_模板/标签词表.md` §3 / §4](../../00_模板/标签词表.md)（收编自原 myconfig §4 / §5）
+- entity / concept `tags:` 取值见 [`00_模板/标签词表.md` §3 / §4](../../00_模板/标签词表.md)（收编自原 config §4 / §5）
 
 ### source 类型差异处理
 
@@ -91,7 +91,7 @@ sub agent 只读 source + 写目标笔记。
 
 sub agent prompt 必须包含：
 - source_note_path：`02_读书笔记/<分类目录>/<文章名>.md`（阶段 2 已写好）
-- myconfig_path：`10_schema/myconfig.md`（**single source of truth**，§4 entity / §5 concept 模板）
+- config_path：`10_schema/config.md`（**single source of truth**，§4 entity / §5 concept 模板）
 - entity_dir：`11_entities/`
 - concept_dir：`12_concepts/`
 
@@ -99,7 +99,7 @@ sub agent prompt 必须包含：
 
 **任务 A：抽取实体**
 
-按 myconfig §4 实体子类枚举（person / organization / project / product / event / place / other）从 source_note_path 全文（含 frontmatter + 4 段正文）抽取。
+按 config §4 实体子类枚举（person / organization / project / product / event / place / other）从 source_note_path 全文（含 frontmatter + 4 段正文）抽取。
 
 slug 规则：
 - person：`Firstname-Lastname`（如 `Stefany-Chourakorn`）
@@ -113,7 +113,7 @@ slug 规则：
 
 **任务 B：抽取概念**
 
-按 myconfig §5 概念子类枚举（theory / method / field / phenomenon / standard / term / other）抽取。同任务 A 记录别名候选。
+按 config §5 概念子类枚举（theory / method / field / phenomenon / standard / term / other）抽取。同任务 A 记录别名候选。
 
 **任务 E：三档 dedup**
 
@@ -152,7 +152,7 @@ LLM Wiki 设计参考：`green-dalii/obsidian-llm-wiki` Tiered duplicate detecti
 对每个候选（有 `merge_target` 或新 slug）：
 
 1. 检查 `11_entities/<slug>.md` 或 `12_concepts/<slug>.md` 是否存在
-2. 不存在 → 按 myconfig §4 / §5 模板**新建**，frontmatter **必填**：
+2. 不存在 → 按 config §4 / §5 模板**新建**，frontmatter **必填**：
    - `aliases:` ≥ 1 项（决策 D2：中等等级）
    - `sources:` 含本次 source wiki-link
    - `type:` "entity" 或 "concept"
@@ -174,7 +174,7 @@ LLM Wiki 设计参考：`green-dalii/obsidian-llm-wiki` Tiered duplicate detecti
 5. **source-level 去重**:本次 source 已在 `sources:` 列表中 → early return 跳过整次 append
 6. **正文缩水保护**:若 Edit 后正文长度 < 改前 50% → abort,不写盘,主对话报警
 
-verbatim 引用按 myconfig §6。
+verbatim 引用按 config §6。
 
 **任务 D：source 笔记追加 `## Related Pages` 段**
 

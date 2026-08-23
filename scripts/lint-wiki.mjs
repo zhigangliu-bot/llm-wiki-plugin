@@ -26,10 +26,10 @@
  *   ## 跨目录 / 共享（3 类）
  *  13.  entity-cross-dir-dup    : entity 与 concept 跨目录 normalize 同名
  *  14.  sources-too-many        : sources.length ≥ 50（entity / concept 共用）
- *  15.  quote-style             : frontmatter 标量字段值未带双引号（myconfig §4 v0.5 约定）
+ *  15.  quote-style             : frontmatter 标量字段值未带双引号（config §4 v0.5 约定）
  *
  *   ## 不再检查的（已废止）
- *   - entity-orphan / concept-orphan: sources: 非必填字段（myconfig §4/§5），
+ *   - entity-orphan / concept-orphan: sources: 非必填字段（config §4/§5），
  *     新建页必然为空，列入会全员误报——故不计入问题桶
  *
  * 用法：
@@ -107,7 +107,7 @@ export function parseFrontmatter(text) {
   };
 
   // status: 接受 bare scalar `状态: true|false`（Obsidian checkbox 期望形态，
-  // myconfig §4 v0.5），不引号。旧 list 形态也兼容（历史误迁移，已回滚）。
+  // config §4 v0.5），不引号。旧 list 形态也兼容（历史误迁移，已回滚）。
   const getStatus = () => {
     return get('状态');
   };
@@ -233,7 +233,7 @@ export function checkContradictions(_frontmatterRaw, body) {
   return /^##\s+Contradictions\s*$/m.test(body);
 }
 
-// 前置声明：frontmatter 标量字段（myconfig §4 v0.5）
+// 前置声明：frontmatter 标量字段（config §4 v0.5）
 // 值必须带双引号。数组 / wiki-link / 已带引号的跳过。
 // 注：`状态:` 是 checkbox 类型（bare boolean），不在此列。
 const QUOTE_SCALAR_KEYS = ['type', 'reviewed', 'created', '创建时间', 'protected', '文章', '作者', 'source']
@@ -242,7 +242,7 @@ const QUOTE_KEY_ALT = QUOTE_SCALAR_KEYS.map(k => k.replace(/[.*+?^${}()|[\]\\]/g
 const QUOTE_LINE_RE = new RegExp(`^(${QUOTE_KEY_ALT}):[ \\t]+([^\\s\\n].*)$`, 'gm')
 
 /**
- * 检查 frontmatter 标量字段值是否带双引号（myconfig §4 v0.5 约定）
+ * 检查 frontmatter 标量字段值是否带双引号（config §4 v0.5 约定）
  * @param {string} fmRaw frontmatter 块原文（不含 --- 包裹符）
  * @returns {string[]} 未带引号的字段名列表（key）
  */
@@ -638,7 +638,7 @@ export async function runLint(opts) {
     'entity-cross-dir-dup': [],
     // 共享告警
     'sources-too-many': [],
-    // 引号风格（myconfig §4 v0.5）
+    // 引号风格（config §4 v0.5）
     'quote-style': [],
   };
 
@@ -663,7 +663,7 @@ export async function runLint(opts) {
     if (checkContradictions(n.fm.raw, bodyMap.get(n.path) || '')) {
       problems['contradictions'].push(n.path);
     }
-    // quote-style：标量字段值未带双引号（myconfig §4 v0.5）
+    // quote-style：标量字段值未带双引号（config §4 v0.5）
     const quoteViolations = checkQuoteStyle(n.fm.raw);
     if (quoteViolations.length > 0) {
       problems['quote-style'].push({ path: n.path, keys: quoteViolations });
