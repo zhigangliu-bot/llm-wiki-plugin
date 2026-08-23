@@ -240,26 +240,6 @@ tags:
 | `knowledge-graph-sync` | llm-wiki-query 不调 kg-sync。kg-sync 只处理 `02_读书笔记/` 存量笔记。 |
 | `llm-wiki-plugin-init` | init 时创建 `03_问答区/` 目录；llm-wiki-query 不调 init。 |
 
-# 维护
-
-- 触发词 / Q1-Q5 判定阈值 / slug 规则改时 → 改本 SKILL.md
-- 改 schema / 词表 / Log 格式时 → 改 `10_schema/config.md` 对应章节
-- qmd tool 用法 / 参数改动时 → 改本 SKILL.md 阶段 B0-B2
-
-# 测试场景（LLM 自测，不写 .test.mjs）
-
-| # | 场景 | 预期 |
-|---|---|---|
-| T1 | 7 个触发词每个匹配一次 | llm-wiki-query 流程启动 |
-| T2 | vault 有相关内容 → 答案含 wiki-link | 主对话输出含 `[[02_读书笔记/...]]` |
-| T3 | Q1-Q5 全部 0 命中 → 不写 03_问答区/ | 仅输出答案，无归档动作 |
-| T4 | Q1 命中 → 写 03_问答区/ + append Log.md | 新文件存在，Log 新增一行 |
-| T5 | 同一 slug 第二次问 → 追加 `## 续答` 段 | 原文件末尾有 `## 续答 YYYY-MM-DD HH:MM` 段 |
-| T6 | frontmatter 字段齐全 + tags 仅从 §2 枚举 | YAML 解析无误，4 轴值合法 |
-| T7 | 反向链接不污染 entity/concept sources: | entity/concept 的 `sources:` 数组未变 |
-| T8 | **qmd 优先路径**：qmd 已装 + collection 就绪 → 阶段 B 调 `query` tool | 主对话能看到 qmd tool 被调用 |
-| T9 | **降级路径**：qmd 未装 / collection 未就绪 → 阶段 B 自动降级 Grep+Read | 主对话输出与 qmd 路径等价，但 Log 标 `Grep 降级` |
-
 # 关联资产
 
 - 复用：`10_schema/config.md` §1 / §4 / §10 / §13.5
