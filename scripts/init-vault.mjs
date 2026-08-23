@@ -154,13 +154,17 @@ export const DIRECTORIES = [
   '11_entities',
   '12_concepts',
   'Inbox',
+  'Inbox/web_clipper',
   '00_模板',
   '10_schema',
   '附件文件夹',
 ];
 
 export const TOP_LEVEL_MD = ['Index.md', 'Log.md'];
-export const PLACEHOLDER_FILES = ['Inbox/.gitkeep'];
+export const PLACEHOLDER_FILES = [
+  'Inbox/.gitkeep',
+  'Inbox/web_clipper/.gitkeep',
+];
 
 /* ===================== runInit 集成函数 ===================== */
 
@@ -199,7 +203,7 @@ export async function runInit({ vaultRoot, pluginRoot = DEFAULT_PLUGIN_ROOT }) {
     };
   }
 
-  // 2. 创建 8 目录
+  // 2. 创建 9 目录
   for (const d of DIRECTORIES) {
     try {
       const r = await ensureDir(path.join(vaultRoot, d));
@@ -210,11 +214,12 @@ export async function runInit({ vaultRoot, pluginRoot = DEFAULT_PLUGIN_ROOT }) {
     }
   }
 
-  // 3. 拷贝 3 个资产
+  // 3. 拷贝 4 个资产
   const assetMap = [
     ['00_模板/读书笔记模板.md', '00_模板/读书笔记模板.md'],
     ['00_模板/标签词表.md', '00_模板/标签词表.md'],
     ['10_schema/config.md', '10_schema/config.md'],
+    ['Inbox/web_clipper/README.md', 'Inbox/web_clipper/README.md'],
   ];
   for (const [relSrc, relDst] of assetMap) {
     const src = path.join(pluginRoot, relSrc);
