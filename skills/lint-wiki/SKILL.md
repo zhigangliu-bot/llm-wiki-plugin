@@ -75,7 +75,7 @@ description: lint、healthcheck、检查 vault、检查笔记、扫一遍、看�
 node scripts/lint-wiki.mjs [--stale-days=90] [--out=scripts/_lint-report.md] [--vault=<vaultRoot>]
 ```
 
-- 默认 `vault` = plugin 仓根(向后兼容);指向真实 vault 时用 `--vault=D:/my-vault` 之类的绝对路径
+- 默认 `vault` = 当前工作目录(`process.cwd()`);所以通常在 vault 根目录执行即可。若 cwd 不是 vault,用 `--vault=D:/my-vault` 指定绝对路径
 
 退出码：
 - `0` = 无问题
