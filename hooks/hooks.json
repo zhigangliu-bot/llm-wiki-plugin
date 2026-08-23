@@ -1,0 +1,17 @@
+{
+  "description": "Auto-update llm-wiki-plugin from GitHub on session start",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/check-update.mjs\"",
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}
