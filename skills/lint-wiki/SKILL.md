@@ -72,8 +72,10 @@ description: lint、healthcheck、检查 vault、检查笔记、扫一遍、看�
 ## Phase 1：执行
 
 ```bash
-node scripts/lint-wiki.mjs [--stale-days=90] [--out=scripts/_lint-report.md]
+node scripts/lint-wiki.mjs [--stale-days=90] [--out=scripts/_lint-report.md] [--vault=<vaultRoot>]
 ```
+
+- 默认 `vault` = plugin 仓根(向后兼容);指向真实 vault 时用 `--vault=D:/my-vault` 之类的绝对路径
 
 退出码：
 - `0` = 无问题
