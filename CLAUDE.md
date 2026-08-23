@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # 仓库性质
 
-Claude Code **plugin 仓**（不是 marketplace 注册表）。本仓提供 4 个 skill（`knowledge-graph-sync` / `lint-wiki` / `obsidian-collacting` / `llm-wiki-query`）+ 1 个 init skill（`llm-wiki-plugin-init`）+ 4 个 Node.js 脚本 + 1 个 SessionStart hook。所有资产自包含、随 plugin 一起分发，vault 用户无需单独下载。
+Claude Code **plugin 仓**（不是 marketplace 注册表）。本仓提供 4 个核心 skill（`knowledge-graph-sync` / `lint-wiki` / `obsidian-collacting` / `llm-wiki-query`）+ 1 个 init skill（`llm-wiki-plugin-init`）+ 4 个 Node.js 脚本 + 1 个 SessionStart hook。所有资产自包含、随 plugin 一起分发，vault 用户无需单独下载。
 
 ## 跟 marketplace 仓的关系
 
@@ -67,7 +67,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com> 由 Claude 自动追加�
 
 # 架构（big picture）
 
-## 四 skill 协作模型
+## 五 skill 协作模型
 
 ```
                   ┌─────────────────────────────────┐

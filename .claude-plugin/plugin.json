@@ -1,7 +1,7 @@
 {
   "name": "llm-wiki-plugin",
   "displayName": "LLM Wiki Plugin",
-  "description": "Obsidian 知识库的 4 个 skill：知识图谱同步 / vault 健康检查 / Inbox 双源归档 / qmd 问答",
+  "description": "Obsidian 知识库的 5 个 skill：知识图谱同步 / vault 健康检查 / Inbox 双源归档 / qmd 问答 / vault 冷启动",
   "author": { "name": "zhigangliu" },
   "version": "0.1.0",
   "license": "MIT",

@@ -1,6 +1,6 @@
 # LLM Wiki Plugin
 
-Obsidian 知识库的 4 个 Claude Code skill 包。
+Obsidian 知识库的 5 个 Claude Code skill 包。
 
 ## 安装
 
@@ -33,7 +33,7 @@ cd ~/.claude/plugins/cache/myself-marketplace/llm-wiki-plugin/<version>
 git pull --ff-only
 ```
 
-## 四个 skill 定位
+## 五个 skill 定位
 
 | Skill | 触发词 | 做什么 |
 |---|---|---|
@@ -46,7 +46,7 @@ git pull --ff-only
 
 ```
 llm-wiki-plugin/
-├── skills/                     # 4 个 SKILL.md（Claude Code 自动识别）
+├── skills/                     # 5 个 SKILL.md（Claude Code 自动识别）
 ├── scripts/
 │   ├── lint-wiki.mjs           # lint-wiki 主脚本
 │   ├── lint-wiki.test.mjs      # lint-wiki 单元测试 (82 cases)
@@ -68,7 +68,7 @@ llm-wiki-plugin/
 | `lint-wiki` | `00_模板/标签词表.md` |
 | `obsidian-collacting` | `00_模板/读书笔记模板.md`、`00_模板/标签词表.md`、`10_schema/config.md`、`scripts/sync-pdf-notes.mjs` |
 
-> ⚠️ 缺 schema/模板时 skill 会失败（lint-wiki 会自动跳过 tag-drift 检查；其它三个会直接报错）。
+> ⚠️ 缺 schema/模板时 skill 会失败（lint-wiki 会自动跳过 tag-drift 检查；其它四个会直接报错）。
 
 ## 本地开发
 
