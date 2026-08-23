@@ -8,7 +8,7 @@
  */
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, rm, readFile, access } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -194,16 +194,45 @@ describe('runInit (integration)', () => {
     assert.equal(report.exitCode, 2);
     assert.equal(report.errors[0].kind, 'vault-is-file');
   });
+
+  test('idempotent: second runInit on same vault → claudeMd.status === already-injected, no content duplication', async () => {
+    const vault = await makeVault('r5');
+    const r1 = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
+    assert.equal(r1.claudeMd.status, 'created');
+
+    // 记录首次 CLAUDE.md 字节数
+    const claudePath = join(vault, 'CLAUDE.md');
+    const size1 = (await readFile(claudePath, 'utf8')).length;
+
+    // 第二次跑
+    const r2 = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
+    assert.equal(r2.claudeMd.status, 'already-injected', 'second run should report already-injected');
+    assert.equal(r2.counters.dirsCreated, 0);  // 8 个都已存在
+    assert.equal(r2.counters.dirsSkipped, 8);
+    assert.equal(r2.counters.filesCopied, 0);  // 3 个都已存在
+    assert.equal(r2.counters.filesSkipped, 3);
+    assert.equal(r2.counters.placeholdersCreated, 0);  // 3 个都已存在
+    assert.equal(r2.counters.placeholdersSkipped, 3);
+    assert.equal(r2.errors.length, 0);
+    assert.equal(r2.exitCode, 0);
+
+    // 关键:CLAUDE.md 字节数必须不变
+    const size2 = (await readFile(claudePath, 'utf8')).length;
+    assert.equal(size2, size1, 'CLAUDE.md must not grow on second run');
+  });
 });
 
 describe('injectClaudeMd', () => {
-  test('empty vault: creates CLAUDE.md with template content (no begin/end block on first creation)', async () => {
+  test('empty vault: creates CLAUDE.md with template content wrapped in begin/end block (idempotency-ready)', async () => {
     const vault = await makeVault('i1');
     const result = await injectClaudeMd(vault, join(PLUGIN_ROOT, '00_模板/CLAUDE_Template.md'));
     assert.equal(result.status, 'created');
     const content = await readFile(join(vault, 'CLAUDE.md'), 'utf8');
     assert.ok(content.includes('仓库性质'));  // CLAUDE_Template.md 的特征内容
-    assert.ok(!content.includes(CLAUDE_BEGIN_MARKER));  // 首次创建不带 begin/end
+    assert.ok(content.includes(CLAUDE_BEGIN_MARKER));  // 首次创建也带 begin/end,确保幂等
+    assert.ok(content.includes(CLAUDE_END_MARKER));
+    // begin 必须在 end 之前
+    assert.ok(content.indexOf(CLAUDE_BEGIN_MARKER) < content.indexOf(CLAUDE_END_MARKER));
   });
 
   test('existing CLAUDE.md (no block): appends begin/end block, preserves original', async () => {

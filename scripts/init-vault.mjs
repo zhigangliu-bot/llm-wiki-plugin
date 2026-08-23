@@ -134,9 +134,11 @@ export async function injectClaudeMd(vaultRoot, templatePath) {
 
   const trimmed = template.replace(/\r?\n+$/, '');  // 去模板末尾换行
   const block = `\n\n${CLAUDE_BEGIN}\n${trimmed}\n${CLAUDE_END}\n`;
+  // 首次创建也要用 begin/end 包裹,避免下次跑判 'already-injected' 失败导致复制一份
+  const wrapped = `${CLAUDE_BEGIN}\n${trimmed}\n${CLAUDE_END}\n`;
 
   if (!exists) {
-    await fs.writeFile(claudePath, `${trimmed}\n`, 'utf8');
+    await fs.writeFile(claudePath, wrapped, 'utf8');
     return { status: 'created', path: claudePath };
   }
 

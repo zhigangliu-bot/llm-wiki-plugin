@@ -73,4 +73,4 @@ CLAUDE.md: <claudeMd.status>
 - 拷贝到 vault: `00_模板/读书笔记模板.md`、`00_模板/标签词表.md`、`10_schema/config.md`
 - 注入到 vault/CLAUDE.md: `00_模板/CLAUDE_Template.md`(模板文件本身不拷到 vault)
 
-详见 spec: [`docs/superpowers/specs/2026-08-23-llm-wiki-plugin-init-design.md`](../../docs/superpowers/specs/2026-08-23-llm-wiki-plugin-init-design.md)
+详见 spec: [myself-marketplace 仓 spec](https://github.com/zhigangliu-bot/myself-marketplace/blob/main/docs/superpowers/specs/2026-08-23-llm-wiki-plugin-init-design.md)

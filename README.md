@@ -65,7 +65,7 @@ node --test scripts/lint-wiki.test.mjs   # 82 cases
 
 冷启动初始化：**给 vault 一句话触发词，1 份控制台报告** 完成。
 
-触发词：初始化 vault、初始化知识库、新建 vault、cold start
+触发词：初始化 vault、初始化知识库、新建 vault、cold start、init vault
 
 行为：
 - 创建 8 个 wiki 目录（`01_知识库/` `02_读书笔记/` `11_entities/` `12_concepts/` `Inbox/` `00_模板/` `10_schema/` `附件文件夹/`）
@@ -75,7 +75,7 @@ node --test scripts/lint-wiki.test.mjs   # 82 cases
 
 幂等可重复跑,vault 已部分初始化时只输出"已存在"。
 
-详见 spec：[`docs/superpowers/specs/2026-08-23-llm-wiki-plugin-init-design.md`](docs/superpowers/specs/2026-08-23-llm-wiki-plugin-init-design.md)
+详见 spec：[myself-marketplace 仓 spec](https://github.com/zhigangliu-bot/myself-marketplace/blob/main/docs/superpowers/specs/2026-08-23-llm-wiki-plugin-init-design.md)
 
 ## License
 
