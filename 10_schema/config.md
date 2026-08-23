@@ -376,7 +376,7 @@ CLAUDE.md 铁律 #3：对话中产生的高价值问答必须**提议**写回 `0
 
 ## 13. Log.md Append 格式
 
-本节定义仓库根 `Log.md` 的 append 格式。`obsidian-collacting` / `knowledge-graph-sync` / `lint-wiki` / `llm-wiki-query` 任一收尾，主对话必须按本格式 append 一条（触发条件见 §3）。
+本节定义仓库根 `Log.md` 的 append 格式。`obsidian-collacting` / `knowledge-graph-sync` / `lint-wiki` / `llm-wiki-query` 任一收尾，主对话必须按本格式 append 一条。
 
 ### 13.1 通用格式
 
@@ -408,9 +408,9 @@ CLAUDE.md 铁律 #3：对话中产生的高价值问答必须**提议**写回 `0
 - **obsidian-collacting**：`触发` / `改动范围`（Inbox 移入 + 02_读书笔记 新增 + 11_entities/12_concepts 新增/append + Index.md 追加）/ `行为`（按主题归档 + sub agent 写笔记 + 反链补全）/ `commit` / `YAGNI 边界`
 - **knowledge-graph-sync**：`触发` / `改动范围`（存量 source 笔记 ## Related Pages 段数 + entity/concept 新建/append 数）/ `行为`（Phase 1-4 简述）/ `commit`
 - **lint-wiki**：`触发` / `扫描笔记数`（X 篇）/ `问题总数`（N 处 + 5 类问题分项数）/ `报告路径`（`scripts/_lint-report.md`）/ `commit`
-- **llm-wiki-query**：`触发` / `答案路径` / `归档触发` / `召回方式` / `commit` — 字段定义见 §13.5
+- **llm-wiki-query**：`触发` / `答案路径` / `归档触发` / `召回方式` / `commit` — 字段定义见 §13.4
 
-### 13.5 llm-wiki-query 最小条目（仅触发归档时写）
+### 13.4 llm-wiki-query 最小条目（仅触发归档时写）
 
 - **触发**：用户明示「<触发词原文>」
 - **答案路径**：`[[03_问答区/<主题>/<slug>.md]]`
@@ -418,7 +418,7 @@ CLAUDE.md 铁律 #3：对话中产生的高价值问答必须**提议**写回 `0
 - **召回方式**：`qmd-mcp` / `Grep 降级`（必填；llm-wiki-query skill 优先 qmd，qmd 未装时降级 Grep+Read）
 - **commit**：`<hash>` 新增 / 续答 QA 笔记
 
-### 13.4 不触发本规范的情形
+### 13.5 不触发本规范的情形
 
 - 单纯修改 4 skill 自身的 `SKILL.md`（走 git commit message 记，不重复写 Log）
 - `scripts/*.mjs` / `scripts/_lint-report.md` 等脚本 / 报告文件改动（不属 vault 笔记）
