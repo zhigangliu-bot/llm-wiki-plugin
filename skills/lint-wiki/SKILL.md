@@ -110,9 +110,3 @@ node scripts/lint-wiki.mjs [--stale-days=90] [--out=scripts/_lint-report.md] [--
 - 退出码非 0 **不阻塞**主对话——只输出报告供你判断
 - 词表文件不存在时跳过 `tag-drift` 检查（容错）
 - 单笔记无入向且无出向**必报 orphan**（这是真实问题）
-
-# 维护
-
-- 脚本：`scripts/lint-wiki.mjs`（纯函数 + CLI 入口，含 `buildVocabSuggestions` 词表归桶）
-- 测试：`scripts/lint-wiki.test.mjs`（82 个测试）
-- 改动前必跑：`node --test scripts/lint-wiki.test.mjs`
