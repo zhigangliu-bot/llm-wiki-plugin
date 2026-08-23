@@ -79,7 +79,8 @@ verbatim 引用规则（config §10）：
 3. 跳过多少篇（已有 `## Related Pages` 段）
 4. 新建 / 追加了多少 entity/concept 页
 5. 是否有存量笔记未归入任何实体/概念（人工 review）
-6. 提示主对话：本次 kg-sync 须在同次 commit 内 append `Log.md` 一条（格式见 `10_schema/config.md` §13.3 kg-sync 最小条目）
+
+6. **强制步骤 — 追加 Log**：在仓库根 `Log.md` 末尾 append 本次操作的 Log 条目（必须、与主任务同次 commit 完成）。格式严格按 `10_schema/config.md §13.3` 要求。
 
 # 注意事项
 

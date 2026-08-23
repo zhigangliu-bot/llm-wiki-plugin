@@ -49,7 +49,6 @@ description: 整理、Inbox、web clipper
    - **不要**从 web clipper 原文 frontmatter 里拷贝 `tags: clippings` / `source: URL` 到新笔记 frontmatter（clippings 是源标记、非 4 轴 tag；URL 已在原文，不进 4 字段 frontmatter）
 5. 根据 `02_读书笔记/` 的模板要求，撰写对应文章的内容和知识点，**直接保存入库，无需用户确认**。**打标前必须先 Read** [`00_模板/标签词表.md`](../../00_模板/标签词表.md) 锁定 4 轴枚举，frontmatter `tags:` 字段仅从 §2 词表 35 个枚举值中选取，禁止自由 tag。
 6. 更新仓库根的 `Index.md`，为每篇新归档的资料添加索引条目（包含：标题、分类、关键概念、文件路径）
-7. 在仓库根的 `Log.md` 末尾追加本次操作记录（**已自写**，非事后补）；Log 条目要标注每篇源**原始路径（PDF / web_clipper md）**
 8. 完成后告诉我处理了多少篇，分别归入了哪些分类（按源类型拆分报告：PDF N 篇 / MD M 篇）。**并在末尾追加「建议更新词表」段**——汇总阶段 2 sub agent 的词表更新候选，按候选值 + 词表段二元组 dedup 后告知用户，由用户显式确认是否补入 `00_模板/标签词表.md`：
 
 ```
@@ -65,8 +64,9 @@ description: 整理、Inbox、web clipper
 - 用户回「确认」→ 主对话用 Edit 工具修改 `00_模板/标签词表.md`：
   - §2 的 axis 表格追加一行（保持值小写 + 中文含义 + 适用场景）
   - §3/§4 子类表格追加一行
-  - **在 Log.md 同次 commit append 一条**（词表改了 → 触发硬性约束 §3，必须走 Log）
 - 用户回「跳过」→ 不动词表；该 sub agent 打的自由 tag 留给 lint-wiki 后续捕获
+
+9. **强制步骤 — 追加 Log**：在仓库根 `Log.md` 末尾 append 本次操作的 Log 条目（必须、与主任务同次 commit 完成）。格式严格按 `10_schema/config.md §13.3` 要求。
 
 # 两层 sub agent 工作流
 

@@ -18,7 +18,7 @@ description: 查 wiki、问一下、query、查 vault、知识库里有没有 X�
 1. **触发判定** — 用户原文含以上触发词
 2. **查询阶段** — 优先调 qmd MCP server 召回相关笔记（混合 BM25/vec + reranking）；qmd 未装时自动降级到 Grep+Read
 3. **归档判定** — LLM 自检 Q1-Q5 强信号条件
-4. **归档阶段** — 满足 ≥1 条 → 全自动写 `03_问答区/<主题>/<slug>.md` + append Log.md
+4. **归档阶段** — 满足 ≥1 条 → 全自动写 `03_问答区/<主题>/<slug>.md`（Log 见 D4 强制步骤）
 
 # 工作流
 
@@ -190,9 +190,9 @@ tags:
 
 **frontmatter 引号约定**：参考 `10_schema/config.md §4` Frontmatter 引号风格约定——标量字段带双引号、数组字段不加引号、`状态:` 不带引号
 
-### D4：append Log.md
+### D4：强制步骤 — 追加 Log
 
-按 `10_schema/config.md §13.1` 通用格式 + `§13.5` llm-wiki-query 最小条目（含 `召回方式` 字段）：
+按 `10_schema/config.md §13.1` 通用格式 + `§13.5` llm-wiki-query 最小条目（含 `召回方式` 字段）。**必须、与主任务同次 commit 完成。**
 
 ```markdown
 ## YYYY-MM-DD  query  <主题摘要>
@@ -229,16 +229,6 @@ tags:
 - ✅ **必须**优先试 qmd（如果 .mcp.json 已声明），失败才降级
 - ✅ **必须**走 CLAUDE 铁律 #2 检索——不得跳过
 - ✅ **必须**每条事实带 `[[wiki 链接]]`
-- ✅ **必须** append Log.md（满足 §3 硬性约束）
-
-# 互斥规则
-
-| Skill | 互斥语义 |
-|---|---|
-| `obsidian-collacting` | llm-wiki-query 写 `03_问答区/`，obsidian-collacting 写 `02_读书笔记/` + `11_entities/` + `12_concepts/`，目录不重叠。**互不调用**。 |
-| `lint-wiki` | llm-wiki-query 不调 lint-wiki。本期不新增 QA 检查项（YAGNI）。 |
-| `knowledge-graph-sync` | llm-wiki-query 不调 kg-sync。kg-sync 只处理 `02_读书笔记/` 存量笔记。 |
-| `llm-wiki-plugin-init` | init 时创建 `03_问答区/` 目录；llm-wiki-query 不调 init。 |
 
 # 关联资产
 
@@ -246,4 +236,3 @@ tags:
 - 复用：`00_模板/标签词表.md` §2（4 轴枚举）
 - MCP server：`qmd`（`.mcp.json` 声明，可选——未装时降级）
 - 写：`03_问答区/<主题>/<slug>.md`
-- 写：`Log.md`（按 §13.5）

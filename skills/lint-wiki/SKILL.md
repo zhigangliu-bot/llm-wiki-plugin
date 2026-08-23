@@ -62,7 +62,6 @@ description: lint、healthcheck、检查 vault、检查笔记、扫一遍、看�
 
 - ❌ 不修改任何笔记
 - ❌ 不读 PDF（只读 md frontmatter + body 文本）
-- ❌ 不更新 Index.md / Log.md
 - ❌ 不删任何文件
 - ❌ 不动 01_知识库/
 - ❌ **不检查 entity-orphan / concept-orphan**：sources: 非必填字段（config §4/§5），新建页必然为空，列入会全员误报
@@ -98,11 +97,7 @@ node scripts/lint-wiki.mjs [--stale-days=90] [--out=scripts/_lint-report.md] [--
 
 ## Phase 3：Log 摘要（必做）
 
-`obsidian-collacting` 不再自动调本 skill——3 skill 互不调用。本 skill 跑完后：
-
-- **主对话必须在同次 commit 内 append `Log.md` 一条诊断摘要**（硬性约束见 `10_schema/config.md` §3）
-- 摘要至少含：扫描时间、扫描笔记数、问题总数、报告路径 `scripts/_lint-report.md`、5 类问题分项数
-- 格式严格按 `10_schema/config.md` §13.3 lint-wiki 最小条目
+- **强制步骤 — 追加 Log**：在仓库根 `Log.md` 末尾 append 本次操作的诊断摘要 Log 条目（必须、与主任务同次 commit 完成）。格式严格按 `10_schema/config.md §13.3` 要求。
 - 本 skill 仍只读 vault 笔记——**扩可写 vault 能力是独立工单**，与本规范无关
 
 # 注意事项
