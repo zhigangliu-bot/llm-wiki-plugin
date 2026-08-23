@@ -1,0 +1,9 @@
+{
+  "name": "llm-wiki-plugin",
+  "displayName": "LLM Wiki Plugin",
+  "description": "Obsidian 知识库的 3 个 skill：知识图谱同步 / vault 健康检查 / Inbox 双源归档",
+  "author": { "name": "zhigangliu" },
+  "version": "0.1.0",
+  "license": "MIT",
+  "keywords": ["obsidian", "knowledge-management", "wiki"]
+}
