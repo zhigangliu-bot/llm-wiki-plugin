@@ -796,21 +796,25 @@ export async function runLint(opts) {
 /* ===================== CLI 入口 ===================== */
 
 function parseCliArgs(argv) {
-  const args = { staleDays: 90, out: null };
+  const args = { staleDays: 90, out: null, vaultRoot: null };
   for (const a of argv.slice(2)) {
-    const m = a.match(/^--(\w+)(?:=(.+))?$/);
+    const m = a.match(/^--([\w-]+)(?:=(.+))?$/);
     if (!m) continue;
     const key = m[1];
     const val = m[2];
     if (key === 'stale-days') args.staleDays = +val;
     else if (key === 'out') args.out = val;
+    else if (key === 'vault') args.vaultRoot = path.resolve(val);
   }
   return args;
 }
 
+export { parseCliArgs };
+
 async function main() {
   const args = parseCliArgs(process.argv);
-  const { report, exitCode } = await runLint({ vaultRoot: VAULT, staleDays: args.staleDays });
+  const vaultRoot = args.vaultRoot || VAULT;
+  const { report, exitCode } = await runLint({ vaultRoot, staleDays: args.staleDays });
   if (args.out) {
     await fs.writeFile(path.resolve(args.out), report);
     console.error(`报告写入 ${args.out}`);
