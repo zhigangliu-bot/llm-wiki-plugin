@@ -64,13 +64,14 @@ CLAUDE.md: <claudeMd.status>
 - **不删除** vault 任何文件
 - **不创建** `.obsidian/`(Obsidian 首次打开会自动生成)
 - 重复调用 init 是安全的(幂等);同一 vault 第二次跑只输出更多"已存在"
-- `placeholdersCreated` 实际包含 `Index.md` / `Log.md` / `Inbox/.gitkeep` / `Inbox/web_clipper/.gitkeep` 四件套,字段名偏窄但语义正确(本期保留,后续若分裂再调整)
+- `placeholdersCreated` 实际包含 `Index.md` / `Log.md` / `Inbox/.gitkeep` / `Inbox/web_clipper/.gitkeep` / `03_问答区/_cross/.gitkeep` 五件套,字段名偏窄但语义正确(本期保留,后续若分裂再调整)
 
 # 资产清单
 
 来源均为 `f:/llm-wiki-plugin/` 仓根的 `00_模板/` 与 `10_schema/`：
 
 - 拷贝到 vault: `00_模板/读书笔记模板.md`、`00_模板/标签词表.md`、`10_schema/config.md`、`Inbox/web_clipper/README.md`
+- 创建到 vault（不拷贝内容）: `03_问答区/` 目录 + `03_问答区/_cross/.gitkeep` 占位
 - 注入到 vault/CLAUDE.md: `00_模板/CLAUDE_Template.md`(模板文件本身不拷到 vault)
 
 详见 spec: [myself-marketplace 仓 spec](https://github.com/zhigangliu-bot/myself-marketplace/blob/main/docs/superpowers/specs/2026-08-23-llm-wiki-plugin-init-design.md)
