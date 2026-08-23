@@ -14,6 +14,7 @@
 Index.md            资料索引表（路由表，LLM 优先读此区）
 Log.md              操作流水
 Inbox/              新资料暂存区
+  └── web_clipper/   浏览器剪藏暂存（Obsidian Web Clipper 写入，obsidian-collacting 入库）
 00_模板/            笔记模板（读书笔记 / 日记 / 会议纪要 / 每周固定任务）
 10_schema/          Wiki schema 配置（本文件位置）
 附件文件夹/         当前附件目录
