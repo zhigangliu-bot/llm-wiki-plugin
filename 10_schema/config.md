@@ -409,4 +409,4 @@ obsidian-collacting sub agent 重跑 ingest → 只 append，不覆盖：
 - `Index.md` 自身更新（属于强制步骤 9 / D4 的产物，不另写 Log 条目）
 - 人工行为（手翻 `状态:` false→true、纯文档查阅）
 - **`llm-wiki-query` 未触发归档**（无 Q 命中、仅口头回答）——不回写 vault 就不写 Log，也不触发 `Index.md`
-- **删改既有笔记**（路径不变语义未改）——不触发 `Index.md` 更新（路径与分类已存在）；但仍写 Log 记录
+- **修改既有笔记**（路径不变、语义未改）——不触发 `Index.md` 更新（路径与分类已存在）；但仍写 Log 记录
