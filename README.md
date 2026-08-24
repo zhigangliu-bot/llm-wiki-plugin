@@ -12,6 +12,52 @@ Obsidian 知识库的 5 个 Claude Code skill 包。
 
 或在 Claude Code 中 `/plugin > Discover` 浏览 marketplace 后安装。
 
+## 环境依赖（开箱即用清单）
+
+> plugin 自身无 `package.json`,所有脚本都只调 Node 内置模块(无第三方 npm 依赖)。
+> 装好后用户机器上必须有以下工具才能跑全部 skill。
+
+| 工具 | 必需 | 用途 | 校验命令 |
+|---|---|---|---|
+| **Node.js ≥ 22** | ✅ | `node --test` / `init-vault.mjs` / `lint-wiki.mjs` / `sync-pdf-notes.mjs` 都用 `node:fs/promises`、`node:test` 等内置 API,Node 22 起 ESM namespace 才稳定 | `node -v` ≥ `v22.x.x` |
+| **git** | ✅ | SessionStart 自动更新 hook 跑 `git pull --ff-only`(详见下节) | `git --version` |
+| **Obsidian** | ✅ | vault 是 Obsidian 知识库,需要 Obsidian 打开目录才能可视化(`.obsidian/` 由 Obsidian 首次打开自动生成) | — |
+| **Claude Code** | ✅ | plugin 是 Claude Code 的 marketplace 包,需要 Claude Code 加载才能调起 skill | `claude --version` |
+
+| 工具 | 可选 | 用途 | 触发场景 |
+|---|---|---|---|
+| **[@tobilu/qmd](https://www.npmjs.com/package/@tobilu/qmd)** | ⚙️ | `llm-wiki-query` 的混合 BM25+向量+LLM 重排搜索引擎;未装时自动降级为 `Grep + Read`,小 vault 也够用 | 大 vault(笔记 > 500 篇) 或需要语义搜索时 |
+| **Templater plugin** | ⚙️ | Obsidian 端用 Templater 一键新建 `02_读书笔记/` 笔记;纯手动也行 | 想用快捷键新建笔记时 |
+| **Obsidian Web Clipper** | ⚙️ | 浏览器一键把网页存为 md 到 `Inbox/web_clipper/`,供 `obsidian-collacting` skill 批量归档 | 想自动收网页笔记时 |
+
+### 快速安装（Windows / macOS / Linux）
+
+```bash
+# 1. Node ≥ 22 (Windows: 用 nvm-windows; macOS/Linux: 用 nvm)
+nvm install 22 && nvm use 22
+
+# 2. git (Linux: apt install git; macOS: brew install git; Windows: https://git-scm.com/)
+
+# 3. Obsidian → https://obsidian.md/download
+
+# 4. Claude Code → https://docs.claude.com/claude-code
+
+# 5. (可选) qmd — 装好后见下文"qmd 接入"
+npm i -g @tobilu/qmd
+```
+
+### 校验清单
+
+装好上面 4 个硬依赖后,在 vault 根目录跑一行验证全部跑通:
+
+```bash
+node ~/.claude/plugins/cache/myself-marketplace/llm-wiki-plugin/*/scripts/init-vault.mjs .
+```
+
+(glob `*` 匹配当前版本号;Windows 用户把 `~/.claude/plugins/cache/` 换成 `%USERPROFILE%\.claude\plugins\cache\`。)
+
+期望:`exitCode: 0`,控制台 JSON 报告里 `claudeMd.status` 是 `created` 或 `refreshed`,`errors` 为空。
+
 ## Auto-Update
 
 This plugin auto-updates from GitHub on every Claude Code startup via a `SessionStart` hook (matcher: `startup`). The hook runs `git pull --ff-only` against the plugin's local cache copy, so you always have the latest version without manually reinstalling.
