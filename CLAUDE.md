@@ -144,6 +144,8 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com> 由 Claude 自动追加�
 
 任一 skill 对 vault 笔记（`02_读书笔记/` `11_entities/` `12_concepts/`）有写操作，**或** lint-wiki 完成一次扫描 → 主对话必须在**同次 commit** 内 append `Log.md` 一条（详见 `10_schema/config.md` §12）。
 
+在 `02_读书笔记/` 或 `03_问答区/` 下**新建**笔记 → 主对话必须在**同次 commit** 内 append `Index.md` 一条索引条目（标题 / 分类 / `[[wiki 路径]]`）。删改既有笔记不触发 Index 更新。
+
 详情见 `00_模板/CLAUDE_Template.md`。
 
 # 工作约束

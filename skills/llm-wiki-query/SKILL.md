@@ -190,7 +190,9 @@ tags:
 
 **frontmatter 引号约定**：参考 `10_schema/config.md §4` Frontmatter 引号风格约定——标量字段带双引号、数组字段不加引号、`状态:` 不带引号
 
-### D4：强制步骤 — 追加 Log（仅触发归档时）
+### D4：强制步骤 — 更新 Index.md + 追加 Log（仅触发归档时）
+
+**索引**：在仓库根 `Index.md` append 一条索引条目（标题 / 分类 / `[[03_问答区/<主题>/<slug>.md]]` 路径）。必须、与主任务同次 commit 完成。
 
 按 `10_schema/config.md §12.1` 通用格式 + `§12.4` llm-wiki-query 最小条目（含 `召回方式` 字段）。**必须、与主任务同次 commit 完成。**
 

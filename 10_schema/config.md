@@ -79,6 +79,7 @@ Inbox/              新资料暂存区
 - 写入工具：obsidian-collacting sub agent 首次入库；knowledge-graph-sync 只读不改
 - 漂移检查：lint-wiki 引用词表 §2/§3/§4 枚举值，发现词表外值即报 tag-drift
 - 操作流水：obsidian-collacting / knowledge-graph-sync / lint-wiki / llm-wiki-query 任一收尾 → 主对话必须在同次 commit 内 append `Log.md` 一条（格式见 §12）。4 skill 各自独立收尾
+  在 `02_读书笔记/` 或 `03_问答区/` 下新建笔记（仅 obsidian-collacting / llm-wiki-query 触发）→ 同次 commit 内 append `Index.md` 一条索引条目
 
 ---
 
@@ -405,6 +406,7 @@ obsidian-collacting sub agent 重跑 ingest → 只 append，不覆盖：
 
 - 单纯修改 4 skill 自身的 `SKILL.md`（走 git commit message 记，不重复写 Log）
 - `scripts/*.mjs` / `scripts/_lint-report.md` 等脚本 / 报告文件改动（不属 vault 笔记）
-- `Index.md` 更新（由 obsidian-collacting 主 Log 覆盖）
+- `Index.md` 自身更新（属于强制步骤 9 / D4 的产物，不另写 Log 条目）
 - 人工行为（手翻 `状态:` false→true、纯文档查阅）
-- **`llm-wiki-query` 未触发归档**（无 Q 命中、仅口头回答）——不回写 vault 就不写 Log
+- **`llm-wiki-query` 未触发归档**（无 Q 命中、仅口头回答）——不回写 vault 就不写 Log，也不触发 `Index.md`
+- **删改既有笔记**（路径不变语义未改）——不触发 `Index.md` 更新（路径与分类已存在）；但仍写 Log 记录
