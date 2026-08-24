@@ -60,7 +60,7 @@ CLAUDE.md: <claudeMd.status>
 # 边界
 
 - **不覆盖** vault 已存在的资产文件(`00_模板/读书笔记模板.md` / `00_模板/标签词表.md` / `10_schema/config.md` / `Inbox/web_clipper/README.md`)
-- **不覆盖** vault/CLAUDE.md 的非 begin/end 段(仅在末尾追加)
+- **不覆盖** vault/CLAUDE.md 的 begin/end 段外内容:首次注入走 append,后续注入走 in-place 替换 begin/end 中间内容(段外一字不动);plugin 升级后再跑一次 init 就能拿到新模板,不会重复追加
 - **不删除** vault 任何文件
 - **不创建** `.obsidian/`(Obsidian 首次打开会自动生成)
 - 重复调用 init 是安全的(幂等);同一 vault 第二次跑只输出更多"已存在"

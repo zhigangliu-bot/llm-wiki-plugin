@@ -38,7 +38,7 @@
 | 幂等 | 同一 vault 重复调用,结果状态不变,只输出更多"跳过" |
 | 目录创建 | vault 内 14 个目录不存在则 `mkdir -p`,已存在则跳过 |
 | 文件拷贝 | vault 内 3 个文件不存在则 `cp`,已存在则跳过且不读内容对比 |
-| CLAUDE.md 注入 | vault/CLAUDE.md 不存在 → 拷贝整个模板；已存在 → 末尾追加 `<!-- llm-wiki-plugin-init:begin -->\n<模板内容>\n<!-- llm-wiki-plugin-init:end -->` 包裹区，重复调用不重复追加（detect begin/end 标记） |
+| CLAUDE.md 注入 | vault/CLAUDE.md 不存在 → 创建并写入 `<!-- llm-wiki-plugin-init:begin -->\n<模板内容>\n<!-- llm-wiki-plugin-init:end -->` 包裹块；已存在且无双标记 → 末尾追加该包裹块；已存在且有 begin/end 双标记 → **in-place 替换两标记之间的内容为最新模板**(段外一字不动)；重复调用不重复追加 |
 | 资产来源 | 拷贝源 = plugin 的 `00_模板/` + `10_schema/`(`{pluginRoot}/skills/llm-wiki-plugin-init/../../` 即可定位)|
 | 顶层 md | `Index.md` / `Log.md` / `Inbox/.gitkeep` 创建空文件占位(内容由后续 skill 生成) |
 | vault 不存在 | 报错退出,exit code 2 |
@@ -109,7 +109,7 @@ const TOP_LEVEL_FILES = [
 | `00_模板/读书笔记模板.md` | `00_模板/读书笔记模板.md` | 跳过(保留用户修改)|
 | `00_模板/标签词表.md` | `00_模板/标签词表.md` | 跳过 |
 | `10_schema/config.md` | `10_schema/config.md` | 跳过 |
-| `00_模板/CLAUDE_Template.md` | `CLAUDE.md` | 末尾追加 begin/end 分隔区；模板自身不拷贝到 vault |
+| `00_模板/CLAUDE_Template.md` | `CLAUDE.md` | 首次创建 / 末尾追加 / 已存在则 in-place 刷新 begin/end 中间内容；模板自身不拷贝到 vault |
 
 ## 数据流
 
@@ -148,7 +148,7 @@ vault: <vaultPath>
 拷贝文件: 1 (新) / 2 (已跳过,保留你的修改)
 顶层 md: 3 个占位文件
 错误: 0
-CLAUDE.md: 已注入模板 | 首次 | 已存在并追加分隔区 | 已存在且模板已注入(跳过)
+CLAUDE.md: 已注入模板 | 首次 | 已存在并追加分隔区 | 已存在且模板已注入(已就地刷新为最新模板)
 
 ✅ vault 已就绪。下一步：/plugin knowledge-graph-sync @ llm-wiki-plugin
 ```
@@ -162,8 +162,12 @@ CLAUDE.md: 已注入模板 | 首次 | 已存在并追加分隔区 | 已存在且
   <模板原内容, 去最末换行>
   <!-- llm-wiki-plugin-init:end -->
   ```
-- 重复调用检测：扫描 `CLAUDE.md` 是否含 `llm-wiki-plugin-init:begin` 标记；含则视为"已注入"，跳过
-- 用户删了分隔区再跑 init：会重新追加一次（视为新一次注入）
+- 三种状态：
+  - `created`：文件不存在 → 写入 `begin\n<模板>\nend\n`
+  - `appended`：文件存在但无双标记 → 末尾追加 `\nbegin\n<模板>\nend\n`（用户原文不动）
+  - `refreshed`：文件存在且有 begin/end 双标记 → 用正则定位 begin/end index,**只替换中间内容为最新模板**,begin 之前的原文 + end 之后的原文均一字不动。plugin 升级后跑 init = 自动把 begin/end 中间内容刷新成新模板
+- 用户手动删了分隔区（无双标记）再跑 init：回到 appended 状态重新追加
+- 用户手动只删 begin 或只删 end（孤标记）：回到 appended 状态追加新块,孤标记不会被清理（留给用户手工处理,避免脚本对用户私域内容做未授权写入）
 
 ## 测试计划
 
@@ -177,10 +181,11 @@ CLAUDE.md: 已注入模板 | 首次 | 已存在并追加分隔区 | 已存在且
 | `runInit(halfInitVault)` 部分创建/部分跳过 | 集成场景 |
 | `runInit(nonExistentVault)` 退出码 2 | 错误路径 |
 | `runInit(fileAsVault)` 退出码 2 | 错误路径 |
-| `injectClaudeMd(emptyVault)` → CLAUDE.md 含完整模板 | 首次注入 |
-| `injectClaudeMd(vaultWithExistingClaudeMd)` → 末尾追加 begin/end 包裹区，原内容不动 | 已存在追加 |
-| `injectClaudeMd(vaultWithAlreadyInjected)` → 报告 skipped=true，文件无变化 | 幂等 |
-| `injectClaudeMd(vaultWithManuallyRemovedBlock)` → 重新注入一次 | 恢复注入 |
+| `injectClaudeMd(emptyVault)` → CLAUDE.md 含完整模板, status=created | 首次注入 |
+| `injectClaudeMd(vaultWithExistingClaudeMd, noBlock)` → 末尾追加 begin/end 包裹区，原内容不动, status=appended | 已存在追加 |
+| `injectClaudeMd(vaultWithAlreadyInjected, staleTemplate)` → status=refreshed, 开头/结尾一字不动, 中间内容替换为新模板, begin/end 仍各 1 个 | 幂等刷新(plugin 升级场景) |
+| `injectClaudeMd(vaultWithAlreadyInjected)` 第二次 → 文件字节数不变 | 不重复追加 |
+| `injectClaudeMd(vaultWithManuallyRemovedBlock)` → status=appended, 重新追加一次 | 恢复注入 |
 
 测试用 `mkdtemp` 在 `os.tmpdir()` 建合成 vault；plugin 资产用真实 plugin 路径(`process.cwd() + '../../'` 之类)。
 

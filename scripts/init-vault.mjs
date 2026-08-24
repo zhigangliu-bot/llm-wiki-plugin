@@ -99,11 +99,19 @@ export async function ensureVaultRoot(vaultRoot) {
 }
 
 /**
- * 把模板内容追加到 vault/CLAUDE.md。幂等:已含 CLAUDE_BEGIN + CLAUDE_END 双标记则跳过。
- * 首次创建(status='created')不带 begin/end 包裹,后续追加(status='appended')带 begin/end。
+ * 把模板内容注入 vault/CLAUDE.md,用 begin/end 标记包裹以支持幂等刷新。
+ *
+ * 行为:
+ * - 文件不存在 → 创建并写入 begin/<template>/end 包裹块(status='created')
+ * - 文件存在,无 begin/end 双标记 → 末尾追加 begin/<template>/end 块(status='appended')
+ * - 文件存在,已有 begin/end 双标记 → 替换两标记之间的内容为最新模板,其它一字不动(status='refreshed')
+ * - 仅有 begin 或仅有 end(用户手动删了一边)→ 视为损坏,走 append 路径重新追加一个完整块
+ *   (status='appended');不主动清理孤 begin/end,留给用户手工处理
+ *
  * 永不抛异常:读取 claude.md 或模板失败时返回 {status: 'read-failed', path, error}。
+ *
  * @returns {Promise<
- *   {status: 'created'|'appended'|'already-injected', path: string}
+ *   {status: 'created'|'appended'|'refreshed', path: string}
  *   | {status: 'read-failed', path: string, error: {kind: string, code?: string, message?: string, templatePath?: string}}
  * >}
  */
@@ -120,11 +128,6 @@ export async function injectClaudeMd(vaultRoot, templatePath) {
     }
   }
 
-  // 双点检测:begin 和 end 必须同时存在才算已注入,避免用户删 end 留 begin 留下孤 begin
-  if (exists && existing.includes(CLAUDE_BEGIN) && existing.includes(CLAUDE_END)) {
-    return { status: 'already-injected', path: claudePath };
-  }
-
   let template;
   try {
     template = await fs.readFile(templatePath, 'utf8');
@@ -133,16 +136,35 @@ export async function injectClaudeMd(vaultRoot, templatePath) {
   }
 
   const trimmed = template.replace(/\r?\n+$/, '');  // 去模板末尾换行
-  const block = `\n\n${CLAUDE_BEGIN}\n${trimmed}\n${CLAUDE_END}\n`;
-  // 首次创建也要用 begin/end 包裹,避免下次跑判 'already-injected' 失败导致复制一份
-  const wrapped = `${CLAUDE_BEGIN}\n${trimmed}\n${CLAUDE_END}\n`;
+  // 块内不含 begin/end 自身的换行,块外前后各留一个 \n 隔开
+  const blockInner = `${CLAUDE_BEGIN}\n${trimmed}\n${CLAUDE_END}\n`;
+  // 末尾追加时,块前再加一个 \n 隔开用户原文
+  const appendable = `\n${blockInner}`;
+  // 首次创建整文件 = 块
+  const wrapped = blockInner;
 
+  // 不存在 → 创建
   if (!exists) {
     await fs.writeFile(claudePath, wrapped, 'utf8');
     return { status: 'created', path: claudePath };
   }
 
-  await fs.appendFile(claudePath, block, 'utf8');
+  // 已有双标记 → 用正则定位,只替换中间内容
+  const beginIdx = existing.indexOf(CLAUDE_BEGIN);
+  const endIdx = existing.indexOf(CLAUDE_END);
+  if (beginIdx !== -1 && endIdx !== -1 && endIdx > beginIdx) {
+    // 保留 begin 之前的原文 + begin + 新模板 + end + end 之后的原文
+    const before = existing.slice(0, beginIdx);
+    const after = existing.slice(endIdx + CLAUDE_END.length);
+    // after 起头若已有换行则不再补一个,避免空行堆积
+    const afterTrimmed = after.replace(/^\n+/, '');
+    const refreshed = `${before}${blockInner}${afterTrimmed ? '\n' + afterTrimmed : afterTrimmed}`;
+    await fs.writeFile(claudePath, refreshed, 'utf8');
+    return { status: 'refreshed', path: claudePath };
+  }
+
+  // 无双标记(只有 begin 或只有 end 或都没有) → 末尾追加
+  await fs.appendFile(claudePath, appendable, 'utf8');
   return { status: 'appended', path: claudePath };
 }
 

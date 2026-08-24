@@ -195,7 +195,7 @@ describe('runInit (integration)', () => {
     assert.equal(report.errors[0].kind, 'vault-is-file');
   });
 
-  test('idempotent: second runInit on same vault → claudeMd.status === already-injected, no content duplication', async () => {
+  test('idempotent: second runInit on same vault → claudeMd.status === refreshed, no content duplication', async () => {
     const vault = await makeVault('r5');
     const r1 = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
     assert.equal(r1.claudeMd.status, 'created');
@@ -206,7 +206,7 @@ describe('runInit (integration)', () => {
 
     // 第二次跑
     const r2 = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
-    assert.equal(r2.claudeMd.status, 'already-injected', 'second run should report already-injected');
+    assert.equal(r2.claudeMd.status, 'refreshed', 'second run should refresh (replace block in place), not skip or append');
     assert.equal(r2.counters.dirsCreated, 0);  // 10 个都已存在
     assert.equal(r2.counters.dirsSkipped, 10);
     assert.equal(r2.counters.filesCopied, 0);  // 4 个都已存在
@@ -216,7 +216,7 @@ describe('runInit (integration)', () => {
     assert.equal(r2.errors.length, 0);
     assert.equal(r2.exitCode, 0);
 
-    // 关键:CLAUDE.md 字节数必须不变
+    // 关键:CLAUDE.md 字节数必须不变(refresh 是 in-place 替换,不会膨胀)
     const size2 = (await readFile(claudePath, 'utf8')).length;
     assert.equal(size2, size1, 'CLAUDE.md must not grow on second run');
   });
@@ -261,15 +261,42 @@ describe('injectClaudeMd', () => {
     assert.ok(content.indexOf(CLAUDE_BEGIN_MARKER) < content.indexOf(CLAUDE_END_MARKER));
   });
 
-  test('already injected: skipped, file unchanged', async () => {
+  test('already injected with stale template: refreshed (block replaced, outer context preserved)', async () => {
     const vault = await makeVault('i3');
+    // 模拟"用户升级 plugin 后老 vault":开头 + 旧 begin/end 块 + 末尾
+    const userHead = '# 用户自定义\n\nDO NOT DELETE.\n';
+    const userTail = '\n## 用户尾部段落\n\n- 自定义项 A\n- 自定义项 B\n';
+    const stale = `${userHead}\n${CLAUDE_BEGIN_MARKER}\n旧模板内容(已过期)\n${CLAUDE_END_MARKER}\n${userTail}`;
+    await writeFile(join(vault, 'CLAUDE.md'), stale, 'utf8');
+
+    const result = await injectClaudeMd(vault, join(PLUGIN_ROOT, '00_模板/CLAUDE_Template.md'));
+    assert.equal(result.status, 'refreshed');
+    const content = await readFile(join(vault, 'CLAUDE.md'), 'utf8');
+
+    // 开头 + 结尾一字不动
+    assert.ok(content.startsWith(userHead), 'user head must be preserved');
+    assert.ok(content.endsWith(userTail), 'user tail must be preserved');
+    // 旧模板内容已消失
+    assert.ok(!content.includes('旧模板内容(已过期)'), 'stale template body must be gone');
+    // 新模板特征内容出现
+    assert.ok(content.includes('仓库性质'), 'new template body must be present');
+    // begin/end 仍然唯一一份
+    const beginCount = (content.match(new RegExp(CLAUDE_BEGIN_MARKER, 'g')) || []).length;
+    const endCount = (content.match(new RegExp(CLAUDE_END_MARKER, 'g')) || []).length;
+    assert.equal(beginCount, 1, 'exactly one begin marker');
+    assert.equal(endCount, 1, 'exactly one end marker');
+  });
+
+  test('refresh does not duplicate the block even when run repeatedly', async () => {
+    const vault = await makeVault('i3b');
     await writeFile(join(vault, 'CLAUDE.md'), '# User\n', 'utf8');
     await injectClaudeMd(vault, join(PLUGIN_ROOT, '00_模板/CLAUDE_Template.md'));
-    const first = await readFile(join(vault, 'CLAUDE.md'), 'utf8');
-    const result = await injectClaudeMd(vault, join(PLUGIN_ROOT, '00_模板/CLAUDE_Template.md'));
-    assert.equal(result.status, 'already-injected');
-    const second = await readFile(join(vault, 'CLAUDE.md'), 'utf8');
-    assert.equal(first, second);
+    const size1 = (await readFile(join(vault, 'CLAUDE.md'), 'utf8')).length;
+
+    const r2 = await injectClaudeMd(vault, join(PLUGIN_ROOT, '00_模板/CLAUDE_Template.md'));
+    assert.equal(r2.status, 'refreshed');
+    const size2 = (await readFile(join(vault, 'CLAUDE.md'), 'utf8')).length;
+    assert.equal(size2, size1, 'second run must not grow file');
   });
 
   test('block manually removed: re-injects (appended status)', async () => {
