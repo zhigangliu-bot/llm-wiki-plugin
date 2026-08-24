@@ -9,7 +9,7 @@ description: lint、healthcheck、检查 vault、检查笔记、扫一遍、看�
 
 # 这个 skill 做什么
 
-**只读不写**——扫描 `02_读书笔记/` + `11_entities/` + `12_concepts/`，输出 14 类健康问题 + 1 节 **Vocab Suggestions（词表补全建议）** 到 `scripts/_lint-report.md`：
+**只读不写**——扫描 `02_读书笔记/` + `11_entities/` + `12_concepts/`（连同 `Log.md` / `Index.md` 用于 `log-backlinks` 检查），输出 15 类健康问题 + 1 节 **Vocab Suggestions（词表补全建议）** 到 `scripts/_lint-report.md`：
 
 ### source 笔记（02_读书笔记/，6 类）
 
@@ -38,12 +38,13 @@ description: lint、healthcheck、检查 vault、检查笔记、扫一遍、看�
 | `concept-tag-drift` | tags 不在词表 §4 concept 子类枚举（7 个） |
 | `concept-name-clash` | 同目录 normalize 后同名 |
 
-### 跨目录 / 共享（2 类）
+### 跨目录 / 共享（3 类）
 
 | 检查 | 含义 |
 |---|---|
 | `entity-cross-dir-dup` | entity 与 concept 跨目录 normalize 同名（语义冲突） |
 | `sources-too-many` | entity / concept 的 `sources.length` ≥ 50（warning，建议合并） |
+| `log-backlinks` | 任一 vault 笔记（含 `02_读书笔记/` `11_entities/` `12_concepts/` `03_问答区/`）以 `[[wiki 链接]]` 或 frontmatter `source:` 指向仓库根 `Log.md`——与 `10_schema/config.md` Log 禁链接约束相悖，污染知识图谱 |
 
 ### 词表补全建议（1 节）
 
@@ -94,6 +95,7 @@ node scripts/lint-wiki.mjs [--stale-days=90] [--out=scripts/_lint-report.md] [--
 7. **stale**：复审，更新状态或删除
 8. **contradictions**：人工 review 双侧来源，决定保留或删除
 9. **sources-too-many**：warning 量级，提示合并 source 列表
+10. **log-backlinks**：error 量级，去掉指向 `Log.md` 的反向链接（或改纯文本引用）
 
 ## Phase 3：Log 摘要（必做）
 

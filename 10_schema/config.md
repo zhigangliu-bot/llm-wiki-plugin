@@ -393,7 +393,7 @@ obsidian-collacting sub agent 重跑 ingest → 只 append，不覆盖：
 
 - **obsidian-collacting**：`触发` / `改动范围`（Inbox 移入 + 02_读书笔记 新增 + 11_entities/12_concepts 新增/append + Index.md 追加）/ `行为`（按主题归档 + sub agent 写笔记 + 反链补全）/ `commit` / `YAGNI 边界`
 - **knowledge-graph-sync**：`触发` / `改动范围`（存量 source 笔记 ## Related Pages 段数 + entity/concept 新建/append 数）/ `行为`（Phase 1-4 简述）/ `commit`
-- **lint-wiki**：`触发` / `扫描笔记数`（X 篇）/ `问题总数`（N 处 + 5 类问题分项数）/ `报告路径`（`scripts/_lint-report.md`）/ `commit`
+- **lint-wiki**：`触发` / `扫描笔记数`（X 篇）/ `问题总数`（N 处 + 5 类问题分项数）/ `报告路径`（`scripts/_lint-report.md`）/ `commit` — `log-backlinks` 是为 §12.1 「Log 不被反向引用」硬约束服务的检查类
 - **llm-wiki-query**：`触发` / `答案路径` / `归档触发` / `召回方式` / `commit` — 字段定义见 §12.4
 
 ### 12.4 llm-wiki-query 最小条目（仅触发归档时写）
