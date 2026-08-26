@@ -190,6 +190,23 @@ export const PLACEHOLDER_FILES = [
   '03_问答区/_cross/.gitkeep',
 ];
 
+/* ===================== 脚本拷贝白名单(覆盖语义) ===================== */
+
+/**
+ * init 时拷贝到 <vault>/scripts/ 的脚本列表(白名单)。
+ *
+ * 策略:每次 init **覆盖** vault/scripts/ 已有同名文件(不复用 copyIfMissing),
+ * 因为 scripts 是 plugin 行为载体,plugin 升级必须同步到 vault 才能生效。
+ *
+ * 不通配 scripts/ 整个目录,是为了防止 *.test.mjs 被误拷到用户 vault。
+ */
+export const SCRIPT_FILES = [
+  'scripts/init-vault.mjs',
+  'scripts/sync-pdf-notes.mjs',
+  'scripts/check-update.mjs',
+  'scripts/lint-wiki.mjs',
+];
+
 /* ===================== runInit 集成函数 ===================== */
 
 /**
