@@ -29,6 +29,9 @@ Obsidian 知识库的 5 个 Claude Code skill 包。
 | **[@tobilu/qmd](https://www.npmjs.com/package/@tobilu/qmd)** | ⚙️ | `llm-wiki-query` 的混合 BM25+向量+LLM 重排搜索引擎;未装时自动降级为 `Grep + Read`,小 vault 也够用 | 大 vault(笔记 > 500 篇) 或需要语义搜索时 |
 | **Templater plugin** | ⚙️ | Obsidian 端用 Templater 一键新建 `02_读书笔记/` 笔记;纯手动也行 | 想用快捷键新建笔记时 |
 | **Obsidian Web Clipper** | ⚙️ | 浏览器一键把网页存为 md 到 `Inbox/web_clipper/`,供 `obsidian-collacting` skill 批量归档 | 想自动收网页笔记时 |
+| **libreoffice** | ⚙️ | `obsidian-collacting` 预转 pptx / xlsx / docx(fallback);`apt install libreoffice` / `brew install --cask libreoffice` | Inbox 里有 pptx/docx/xlsx 文件时 |
+| **pandoc** | ⚙️ | `obsidian-collacting` 预转 docx(优先于 libreoffice,中文排版更准);缺失时 docx 自动降级到 libreoffice | 想用 pandoc 转 docx 时 |
+| **paddleocr** | ⚙️ | `obsidian-collacting` 预转 png/jpg/jpeg 图片 OCR(中文识别优于 tesseract);`pip install paddleocr paddlepaddle`;缺失时图片文件跳过,其他类型继续 | Inbox 里有图片文件时 |
 
 ### 快速安装（Windows / macOS / Linux）
 
@@ -85,7 +88,7 @@ git pull --ff-only
 |---|---|---|
 | `knowledge-graph-sync` | knowledge graph / 同步反向引用 / 知识图谱同步 | 手动触发；只补存量 `02_读书笔记/` 的反向引用 `## Related Pages`，不读 PDF、不写正文 |
 | `lint-wiki` | lint / healthcheck / 检查 vault / 扫一遍笔记 / 跑 lint | 只读不写；扫 source/entity/concept 14 类健康问题到 `scripts/_lint-report.md` |
-| `obsidian-collacting` | 整理 / Inbox / web clipper | `Inbox/` 双源（PDF + web clipper md）→ 归档到 `01_知识库/` → 生成 `02_读书笔记/` 模板 → 写正文 → 抽 entity/concept |
+| `obsidian-collacting` | 整理 / Inbox / web clipper / office / ppt / word / excel / 图片 | `Inbox/` 6 源（pdf / web_clipper md / pptx / docx / xlsx / png-jpg）→ 归档到 `01_知识库/` → 生成 `02_读书笔记/` 模板 → 写正文 → 抽 entity/concept；office 与图片走 `scripts/convert-office.mjs` 预转 md |
 | `llm-wiki-query` | 查 wiki / 问个问题 / 问一下 / query / 查 vault / 知识库里有没有 X / 我问个问题 | 显式触发；用 qmd MCP 召回 + 引用合成答案；好答案自动归档到 `03_问答区/` |
 
 ## 内含资产
@@ -96,7 +99,9 @@ llm-wiki-plugin/
 ├── scripts/
 │   ├── lint-wiki.mjs           # lint-wiki 主脚本
 │   ├── lint-wiki.test.mjs      # lint-wiki 单元测试 (82 cases)
-│   └── sync-pdf-notes.mjs      # obsidian-collacting 同步 PDF 笔记
+│   ├── sync-pdf-notes.mjs      # obsidian-collacting 同步 PDF 笔记
+│   ├── convert-office.mjs      # obsidian-collacting 预转 office/image 为 md（libreoffice/pandoc/paddleocr）
+│   └── convert-office.test.mjs # convert-office 单元测试 (11 cases)
 ├── 10_schema/
 │   └── config.md             # §4 entity / §5 concept / §10 verbatim 规则
 └── 00_模板/
@@ -112,7 +117,7 @@ llm-wiki-plugin/
 | --- | --- |
 | `knowledge-graph-sync` | `10_schema/config.md`、`00_模板/标签词表.md` |
 | `lint-wiki` | `00_模板/标签词表.md` |
-| `obsidian-collacting` | `00_模板/读书笔记模板.md`、`00_模板/标签词表.md`、`10_schema/config.md`、`scripts/sync-pdf-notes.mjs` |
+| `obsidian-collacting` | `00_模板/读书笔记模板.md`、`00_模板/标签词表.md`、`10_schema/config.md`、`scripts/sync-pdf-notes.mjs`、`scripts/convert-office.mjs` |
 
 > ⚠️ 缺 schema/模板时 skill 会失败（lint-wiki 会自动跳过 tag-drift 检查；其它四个会直接报错）。
 
@@ -120,7 +125,8 @@ llm-wiki-plugin/
 
 ```bash
 cd <plugin-repo>
-node --test scripts/lint-wiki.test.mjs   # 82 cases
+node --test scripts/lint-wiki.test.mjs           # 82 cases
+node --test scripts/convert-office.test.mjs      # 11 cases
 ```
 
 改动前必跑；改动后提交前必跑。
