@@ -41,14 +41,21 @@ node scripts/convert-office.mjs --input=/dev/null --output=/dev/null --type=pptx
 
 用返回的 `error: tool_missing` 判断依赖,缺失时打印安装命令并按上表行为处理。
 
-# Inbox 双源扫描
+# Inbox 多源扫描
 
 `Inbox/` 是新资料暂存区。本 skill 同时识别两类源，但**走两条不同的同步路径**——因为现有 `sync-pdf-notes.mjs` 只识别 `.pdf` 扩展名（见 `scripts/sync-pdf-notes.mjs:167` 的 `walkForPdfs` 过滤），不能直接复用：
 
 | 源目录 | 文件类型 | 物理处理 | 笔记模板 |
 | --- | --- | --- | --- |
-| `Inbox/**/*.{pdf,PDF}` | PDF（递归） | `mv` 到 `01_知识库/<主题目录>/` | 调 `sync-pdf-notes.mjs --overwrite=false` 自动生成 |
-| `Inbox/web_clipper/*.md` | Markdown（web 剪藏，`tags: [clippings]`） | `mv` 到 `01_知识库/<主题目录>/` | **手工复制 `00_模板/读书笔记模板.md` 到 `02_读书笔记/`** 对应位置，手工改 frontmatter（详见步骤 4'） |
+| `Inbox/**/*.{pdf,PDF}` | PDF(递归) | `mv` 到 `01_知识库/<主题目录>/` | 调 `sync-pdf-notes.mjs --overwrite=false` 自动生成 |
+| `Inbox/web_clipper/*.md` | Markdown(web 剪藏,`tags: [clippings]`) | `mv` 到 `01_知识库/<主题目录>/` | **手工复制 `00_模板/读书笔记模板.md` 到 `02_读书笔记/`**(详见步骤 4') |
+| `Inbox/**/*.{pptx,PPT}` | PowerPoint(递归) | `mv` 到 `01_知识库/<主题目录>/` | **手工复制 `00_模板/读书笔记模板.md` 到 `02_读书笔记/`**(详见步骤 4''),先调 `convert-office.mjs` 预转 md |
+| `Inbox/**/*.{docx,DOC}` | Word(递归) | `mv` 到 `01_知识库/<主题目录>/` | 同 pptx(pandoc 优先,libreoffice fallback) |
+| `Inbox/**/*.{xlsx,XLS}` | Excel(递归) | `mv` 到 `01_知识库/<主题目录>/` | 同 pptx(转 CSV 再拼 md 表格) |
+| `Inbox/**/*.{png,jpg,jpeg,PNG,JPG}` | 图片(递归) | `mv` 到 `01_知识库/<主题目录>/` | **手工复制模板**(详见步骤 4''),先调 `convert-office.mjs` PaddleOCR |
+
+> **递归范围说明**:PDF / PPTX / DOCX / XLSX / 图片均递归 `Inbox/**/`,允许用户在 Inbox 下任意子目录暂存。`Inbox/web_clipper/*.md` 仍是单层扫描(沿用旧语义,避免误扫其他 md)。
+> **不在本 skill 范围**:`.txt` / `.zip` / `.mp4` 等其他扩展名直接跳过,不报错。
 
 > **路径 2（web clipper md）为什么不直接调 sync 脚本**：
 > `sync-pdf-notes.mjs:walkForPdfs` 过滤 `endsWith('.pdf')`（固定字串），web clipper md 落不进 scan 列表。
@@ -59,9 +66,11 @@ node scripts/convert-office.mjs --input=/dev/null --output=/dev/null --type=pptx
 
 # 执行动作
 
-1. **扫描** `Inbox/` 双源：
-   - `Inbox/**/*.pdf` 递归（沿用 sync 脚本自身的扫描逻辑，但本步只统计文件清单）
-   - `Inbox/web_clipper/*.md` 单层（子目录里再嵌套 `.md` 不收，避免误扫）
+1. **扫描** `Inbox/` 多源:
+   - `Inbox/**/*.pdf` 递归(沿用 sync 脚本扫描逻辑,本步只统计文件清单)
+   - `Inbox/web_clipper/*.md` 单层(子目录里再嵌套 `.md` 不收)
+   - `Inbox/**/*.{pptx,docx,xlsx,png,jpg,jpeg}` 递归
+   - 跳过其他扩展名
 2. **理解**每个文件的主题（读 frontmatter + 标题，与 `01_知识库/` 已有的子目录对比）
 3. **归档**（按 `sys.path` `mv` 而非 `cp`——web clipper md 同名重复时 Inbox 是冗余的）：
    - 主题匹配既有 `01_知识库/<主题>/` → `mv Inbox/<file> 01_知识库/<主题>/`
