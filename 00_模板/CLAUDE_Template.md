@@ -10,8 +10,8 @@
   检索优先级：`02_读书笔记/` > `01_知识库/` > `04_会议记录/` > `03_日记/`。
   若仓库无相关内容，必须明确说明「仓库无相关笔记」再做通用回答，不得把通用知识伪装成仓库内容。
 - **File Back 兜底（非 llm-wiki-query 场景）**：普通对话（非「查 wiki / 问答」触发词）中产生的高价值问答，主对话**必须提议**写回 `02_读书笔记/`（建议命名 `<主题>-<一句话>.md` 或追加到既有笔记末尾），由用户显式确认后才可写入。query 场景下的归档已由 `llm-wiki-query` skill 全自动处理，**不**走此兜底。
-- **任何对知识库的修改都必须同步写入 `Log.md`**：人工改 / 任一 skill 改 vault 笔记 → 主对话在**同次 commit** 内按 `10_schema/myconfig.md §12` append 一条记录。`llm-wiki-query` 未触发归档（仅口头回答）除外。
-- **新建 / 删除笔记必须同步更新 `Index.md`**：在 `02_读书笔记/` 或 `03_问答区/` 下新增文件 → 主对话在**同次 commit** 内 append 一条索引条目（标题 / 分类 / 关键概念 / 文件路径）；删除既有笔记 → 从 `Index.md` 移除对应条目。**修改**既有笔记（路径不变）**不**触发 `Index.md` 更新。
+- **任何对知识库的修改都必须同步写入 `Log.md`**：人工改 / 任一 skill 改 vault 笔记 → 主对话在**同次 commit** 内按 `00_模板/Log_Spec.md` append 一条记录。`llm-wiki-query` 未触发归档（仅口头回答）除外。
+- **新建 / 删除笔记必须同步更新 `Index.md`**：在 `02_读书笔记/` 或 `03_问答区/` 下新增文件 → 主对话在**同次 commit** 内 append 一条索引条目（标题 / 分类 / 关键概念 / 文件路径，格式见 `00_模板/Index_Spec.md`）；删除既有笔记 → 从 `Index.md` 移除对应条目。**修改**既有笔记（路径不变）**不**触发 `Index.md` 更新。
 
 ## 身份
 
@@ -24,7 +24,7 @@
 反向引用调用这个skill: knowledge-graph-sync
 查 wiki / 问答（qmd MCP 召回 + Grep 降级）调用这个skill: llm-wiki-query
 初始化 vault / 搭建脚手架调用这个skill: llm-wiki-plugin-init
-vault 改动流水：上述 5 个 skill 任一对 vault 笔记（`02_读书笔记/`、`11_entities/`、`12_concepts/`、`03_问答区/`）有写操作，或 lint-wiki 完成一次扫描 → 主对话必须在同次 commit 内 append `Log.md` 一条（详见 `10_schema/myconfig.md` §12）
+vault 改动流水：上述 5 个 skill 任一对 vault 笔记（`02_读书笔记/`、`11_entities/`、`12_concepts/`、`03_问答区/`）有写操作，或 lint-wiki 完成一次扫描 → 主对话必须在同次 commit 内 append `Log.md` 一条（详见 `00_模板/Log_Spec.md`）
 5 skill 协作：
 - `## Related Pages` 段互斥——obsidian-collacting 自动处理新 ingest 笔记，kg-sync 处理存量旧笔记
 - `03_问答区/` 由 llm-wiki-query 独占写入——obsidian-collacting / lint-wiki / kg-sync 不读不写

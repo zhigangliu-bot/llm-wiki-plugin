@@ -78,8 +78,8 @@ Inbox/              新资料暂存区
 - entity / concept `tags:` 单值，限对应子类枚举（词表 §3 / §4）
 - 写入工具：obsidian-collacting sub agent 首次入库；knowledge-graph-sync 只读不改
 - 漂移检查：lint-wiki 引用词表 §2/§3/§4 枚举值，发现词表外值即报 tag-drift
-- 操作流水：obsidian-collacting / knowledge-graph-sync / lint-wiki / llm-wiki-query 任一收尾 → 主对话必须在同次 commit 内 append `Log.md` 一条（格式见 §12）。4 skill 各自独立收尾
-  在 `02_读书笔记/` 或 `03_问答区/` 下新建笔记（仅 obsidian-collacting / llm-wiki-query 触发）→ 同次 commit 内 append `Index.md` 一条索引条目
+- 操作流水：obsidian-collacting / knowledge-graph-sync / lint-wiki / llm-wiki-query 任一收尾 → 主对话必须在同次 commit 内 append `Log.md` 一条（格式见 `00_模板/Log_Spec.md`）。4 skill 各自独立收尾
+  在 `02_读书笔记/` 或 `03_问答区/` 下新建笔记（仅 obsidian-collacting / llm-wiki-query 触发）→ 同次 commit 内 append `Index.md` 一条索引条目（格式见 `00_模板/Index_Spec.md`）
 
 ---
 
@@ -355,60 +355,3 @@ obsidian-collacting sub agent 重跑 ingest → 只 append，不覆盖：
 | ---------------- | ------------------------------------------- | -------------------------------------------------- |
 | Cross-dir dup    | entity 与 concept 跨目录 normalize 同名     | lint-wiki 报 entity-cross-dir-dup                  |
 | Sources too many | entity / concept 的`sources.length` ≥ 50 | lint-wiki 报 sources-too-many（warning，建议合并） |
-
----
-
-## 12. Log.md Append 格式
-
-本节定义仓库根 `Log.md` 的 append 格式。`obsidian-collacting` / `knowledge-graph-sync` / `lint-wiki` / `llm-wiki-query` 任一收尾，主对话必须按本格式 append 一条。
-
-### 12.1 通用格式
-
-> **硬约束**：`Log.md` **不**使用 `[[wiki 链接]]`、**不**被任何 `[[wiki 链接]]` 反向引用——若引入，`Log.md` 会进入知识图谱污染 `## Related Pages` 与 entity/concept `sources:` 计数。所有路径一律用反引号相对路径（如 `` `02_读书笔记/<主题>/<name>.md` ``）。
-
-| 字段        | 约定                                                                                                    |
-| ----------- | ------------------------------------------------------------------------------------------------------- |
-| 标题级别    | `## YYYY-MM-DD  简述`（H2，日期与内容**双空格**分隔）                                           |
-| 倒序        | 最新在顶部；上一行用`---` 视觉分隔                                                                    |
-| 起首        | `**触发**` 单星号，写触发原因 / 用户原话                                                              |
-| 后续        | `**改动范围**` / `**行为**` / `**commit**` / `**测试结果**` / `**YAGNI 边界**` 等小节按需组合 |
-| 路径引用    | **仅**反引号相对路径，禁止 `[[wiki 链接]]`                                                              |
-| commit 列表 | `- \`<hash></hash>\` 描述` 单行短句                                                                   |
-| 工具调用    | `node scripts/<name>.mjs --flags` 全文内嵌代码                                                        |
-
-### 12.2 模板
-
-```markdown
-## 2026-MM-DD  <skill 名> 触发说明
-
-- **触发**：用户明示「<触发词原文>」
-- **改动范围**：
-  - <path 或笔记数>
-- **行为**：<简述>
-- **commit**：`<hash>` <描述>
-- **lint 验收**：<如适用>
-```
-
-### 12.3 4 skill 各自的最小条目
-
-- **obsidian-collacting**：`触发` / `改动范围`（Inbox 移入 + 02_读书笔记 新增 + 11_entities/12_concepts 新增/append + Index.md 追加）/ `行为`（按主题归档 + sub agent 写笔记 + 反链补全）/ `commit` / `YAGNI 边界`
-- **knowledge-graph-sync**：`触发` / `改动范围`（存量 source 笔记 ## Related Pages 段数 + entity/concept 新建/append 数）/ `行为`（Phase 1-4 简述）/ `commit`
-- **lint-wiki**：`触发` / `扫描笔记数`（X 篇）/ `问题总数`（N 处 + 5 类问题分项数）/ `报告路径`（`scripts/_lint-report.md`）/ `commit` — `log-backlinks` 是为 §12.1 「Log 不被反向引用」硬约束服务的检查类
-- **llm-wiki-query**：`触发` / `答案路径` / `归档触发` / `召回方式` / `commit` — 字段定义见 §12.4
-
-### 12.4 llm-wiki-query 最小条目（仅触发归档时写）
-
-- **触发**：用户明示「<触发词原文>」
-- **答案路径**：`[[03_问答区/<主题>/<slug>.md]]`
-- **归档触发**：列出 Q1 / Q2 / Q3 / Q4 / Q5 命中项（如 Q1 + Q5）
-- **召回方式**：`qmd-mcp` / `Grep 降级`（必填；llm-wiki-query skill 优先 qmd，qmd 未装时降级 Grep+Read）
-- **commit**：`<hash>` 新增 / 续答 QA 笔记
-
-### 12.5 不触发本规范的情形
-
-- 单纯修改 4 skill 自身的 `SKILL.md`（走 git commit message 记，不重复写 Log）
-- `scripts/*.mjs` / `scripts/_lint-report.md` 等脚本 / 报告文件改动（不属 vault 笔记）
-- `Index.md` 自身更新（属于强制步骤 9 / D4 的产物，不另写 Log 条目）
-- 人工行为（手翻 `状态:` false→true、纯文档查阅）
-- **`llm-wiki-query` 未触发归档**（无 Q 命中、仅口头回答）——不回写 vault 就不写 Log，也不触发 `Index.md`
-- **修改既有笔记**（路径不变、语义未改）——不触发 `Index.md` 更新（路径与分类已存在）；但仍写 Log 记录

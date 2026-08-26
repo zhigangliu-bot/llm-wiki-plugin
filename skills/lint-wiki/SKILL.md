@@ -44,7 +44,7 @@ description: lint、healthcheck、检查 vault、检查笔记、扫一遍、看�
 |---|---|
 | `entity-cross-dir-dup` | entity 与 concept 跨目录 normalize 同名（语义冲突） |
 | `sources-too-many` | entity / concept 的 `sources.length` ≥ 50（warning，建议合并） |
-| `log-backlinks` | 任一 vault 笔记（含 `02_读书笔记/` `11_entities/` `12_concepts/` `03_问答区/`）以 `[[wiki 链接]]` 或 frontmatter `source:` 指向仓库根 `Log.md`——与 `10_schema/config.md` Log 禁链接约束相悖，污染知识图谱 |
+| `log-backlinks` | 任一 vault 笔记（含 `02_读书笔记/` `11_entities/` `12_concepts/` `03_问答区/`）以 `[[wiki 链接]]` 或 frontmatter `source:` 指向仓库根 `Log.md`——与 `00_模板/Log_Spec.md §1` 硬约束相悖，污染知识图谱 |
 
 ### 词表补全建议（1 节）
 
@@ -99,7 +99,7 @@ node scripts/lint-wiki.mjs [--stale-days=90] [--out=scripts/_lint-report.md] [--
 
 ## Phase 3：Log 摘要（必做）
 
-- **强制步骤 — 追加 Log**：在仓库根 `Log.md` 末尾 append 本次操作的诊断摘要 Log 条目（必须、与主任务同次 commit 完成）。格式严格按 `10_schema/config.md §12.3` 要求。
+- **强制步骤 — 追加 Log**：在仓库根 `Log.md` 末尾 append 本次操作的诊断摘要 Log 条目（必须、与主任务同次 commit 完成）。格式严格按 `00_模板/Log_Spec.md §3` 要求。
 - 本 skill 仍只读 vault 笔记——**扩可写 vault 能力是独立工单**，与本规范无关
 
 # 注意事项

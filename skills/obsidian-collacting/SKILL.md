@@ -67,7 +67,7 @@ description: 整理、Inbox、web clipper
 - 用户回「跳过」→ 不动词表；该 sub agent 打的自由 tag 留给 lint-wiki 后续捕获
 
 9. **强制步骤 — 更新 Index.md**：同步 `Index.md`（新建 → append 一条索引条目：`标题 / 分类 / 关键概念 / [[02_读书笔记/<主题>/<name>.md]]`；删除既有 → 移除对应条目）。必须、与主任务同次 commit 完成。
-10. **强制步骤 — 追加 Log**：在仓库根 `Log.md` 末尾 append 本次操作的 Log 条目（必须、与主任务同次 commit 完成）。格式严格按 `10_schema/config.md §12.3` 要求。
+10. **强制步骤 — 追加 Log**：在仓库根 `Log.md` 末尾 append 本次操作的 Log 条目（必须、与主任务同次 commit 完成）。格式严格按 `00_模板/Log_Spec.md §3` 要求。
 
 # 两层 sub agent 工作流
 

@@ -194,7 +194,7 @@ tags:
 
 **索引**：在仓库根 `Index.md` append 一条索引条目（标题 / 分类 / `[[03_问答区/<主题>/<slug>.md]]` 路径）。必须、与主任务同次 commit 完成。
 
-按 `10_schema/config.md §12.1` 通用格式 + `§12.4` llm-wiki-query 最小条目（含 `召回方式` 字段）。**必须、与主任务同次 commit 完成。**
+按 `00_模板/Log_Spec.md §2` 通用格式 + `§3.4` llm-wiki-query 最小条目（含 `召回方式` 字段）。**必须、与主任务同次 commit 完成。**
 
 ```markdown
 ## YYYY-MM-DD  query  <主题摘要>
@@ -234,7 +234,8 @@ tags:
 
 # 关联资产
 
-- 复用：`10_schema/config.md` §1 / §4 / §10 / §12.4
+- 复用：`10_schema/config.md` §1 / §4 / §10
+- 复用：`00_模板/Log_Spec.md` §3.4
 - 复用：`00_模板/标签词表.md` §2（4 轴枚举）
 - MCP server：`qmd`（`.mcp.json` 声明，可选——未装时降级）
 - 写：`03_问答区/<主题>/<slug>.md`
