@@ -97,6 +97,50 @@ export function countSlides(mdBody) {
   return (mdBody.match(/<!--\s*第\s*\d+\s*段\s*-->/g) || []).length;
 }
 
+export async function convertXlsxMultiSheet(input, output) {
+  const which = await runCommand('which', ['libreoffice'], 5_000);
+  if (which.code !== 0) {
+    return { ok: false, error: 'tool_missing', stderr: 'libreoffice not in PATH (xlsx needs it)', code: 2 };
+  }
+  const tmpdir = dirname(output) + '/_xlsx_' + Date.now();
+  await mkdir(tmpdir, { recursive: true });
+  const args = ['--headless', '--convert-to', 'csv', '--outdir', tmpdir, input];
+  const r = await runCommand('libreoffice', args, 60_000);
+  if (r.code !== 0) return { ok: false, error: 'convert_failed', stderr: r.stderr, code: 1 };
+  const fs = await import('node:fs/promises');
+  const files = await fs.readdir(tmpdir);
+  const csvFiles = files.filter((f) => f.endsWith('.csv')).sort();
+  const sections = [];
+  for (const f of csvFiles) {
+    const csv = await fs.readFile(`${tmpdir}/${f}`, 'utf8');
+    sections.push(`<!-- 第 ${sections.length + 1} 段 (sheet: ${f.replace(/\.csv$/, '')}) -->\n\n` + csvToMdTable(csv));
+  }
+  await fs.rm(tmpdir, { recursive: true, force: true });
+  const body = sections.join('\n\n');
+  return { ok: true, body, pageCount: sections.length };
+}
+
+export function csvToMdTable(csv) {
+  const rows = csv.trim().split(/\r?\n/).map((line) => {
+    // 简单 CSV 解析:支持双引号包裹的字段含逗号
+    const cells = [];
+    let cur = '';
+    let inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') inQuote = !inQuote;
+      else if (ch === ',' && !inQuote) { cells.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    cells.push(cur);
+    return cells.map((c) => c.trim() || ' ');
+  });
+  if (rows.length === 0) return '';
+  const header = rows[0];
+  const sep = header.map(() => '---');
+  return [header, sep, ...rows.slice(1)].map((r) => `| ${r.join(' | ')} |`).join('\n');
+}
+
 export async function main() {
   const args = parseCli();
   await mkdir(dirname(args.output), { recursive: true });
@@ -106,7 +150,7 @@ export async function main() {
   } else if (args.type === 'docx') {
     result = await convertDocxWithPandocFallback(args.input, args.output);
   } else if (args.type === 'xlsx') {
-    failAndExit('not_implemented', 'xlsx branch comes in Task 4', 1);
+    result = await convertXlsxMultiSheet(args.input, args.output);
   } else {
     failAndExit('not_implemented', `image branch (${args.type}) comes in Task 5`, 1);
   }
