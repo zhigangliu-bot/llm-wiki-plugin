@@ -7,6 +7,22 @@ description: 整理、Inbox、web clipper
 
 当用户说：整理、Inbox、web clipper
 
+# 执行前置（强制）
+
+调用任何 `node scripts/...` 命令前，**必须保证当前工作目录是 vault 根**（`<vaultRoot>/`，即含 `01_知识库/` `02_读书笔记/` `00_模板/` 的目录）。
+
+两种方式二选一：
+
+1. 主对话执行 `cd "<vaultRoot>" && node scripts/<name>.mjs ...`（显式 cd）
+2. 主对话先用 Bash 切换 cwd 到 vault 根，后续命令省略 cd 前缀
+
+**禁止**：
+
+- 在 skill 所在 plugin 目录下直接调 `node scripts/...` —— `scripts/` 不在 plugin 仓根，而在 vault 根
+- 用相对路径 `../../../scripts/...` 跨层跳 —— 不可移植，vault 路径变化就崩
+
+init 阶段会保证 `<vaultRoot>/scripts/` 存在（见 `llm-wiki-plugin-init` 步骤 2.5），但**不保证 cwd**。
+
 # Inbox 双源扫描
 
 `Inbox/` 是新资料暂存区。本 skill 同时识别两类源，但**走两条不同的同步路径**——因为现有 `sync-pdf-notes.mjs` 只识别 `.pdf` 扩展名（见 `scripts/sync-pdf-notes.mjs:167` 的 `walkForPdfs` 过滤），不能直接复用：
