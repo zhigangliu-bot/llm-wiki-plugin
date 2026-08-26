@@ -90,6 +90,25 @@ node scripts/convert-office.mjs --input=/dev/null --output=/dev/null --type=pptx
      - `source: "{{pdf}}"` → `source: "[[01_知识库/<主题>/<name>.md]]"`
    - 若 `02_读书笔记/<主题>/<name>.md` 已存在 → **跳过**并报告冲突
    - **不要**从 web clipper 原文 frontmatter 里拷贝 `tags: clippings` / `source: URL` 到新笔记 frontmatter（clippings 是源标记、非 4 轴 tag；URL 已在原文，不进 4 字段 frontmatter）
+
+4''. **同步 office / image 模板**（与步骤 4 / 4' 并列，仅在 Inbox 里有 pptx/docx/xlsx/png/jpg 时执行）:
+
+   对每个 `Inbox/<dir>/<name>.{pptx,docx,xlsx,png,jpg,jpeg}`:
+   1. **预转换**（sub agent 读取前）:`node scripts/convert-office.mjs --input=<abs> --output=<vaultRoot>/temp/ingest/<name>.md --type=<ext>`
+      - 失败 (`error: tool_missing` / `convert_failed`) → 跳过该文件,记录到最终报告"X 个 office/image 转换失败"
+   2. **归档**:`mv Inbox/<dir>/<name>.<ext> 01_知识库/<主题>/<name>.<ext>`(同名冲突跳过并报告)
+   3. **复制模板**:`cp 00_模板/读书笔记模板.md 02_读书笔记/<主题>/<name>.md`
+   4. **替换占位字段**(用 Edit):
+      - `文章: "{{title}}"` → `文章: "<name>"`
+      - `作者:` → `作者: "(从预转 md frontmatter 或正文推断;无法推断留空)"`
+      - `创建时间: "{{date}}"` → `创建时间: "<YYYY-MM-DD,系统填当天日期>"`
+      - `source: "{{pdf}}"` → `source: "[[01_知识库/<主题>/<name>.<ext>]]"`
+   5. **同名已存在** → 跳过并报告冲突
+   6. **不动** frontmatter 里的 `tags: clippings`(那是 web clipper 源标记,office/image 没有)
+
+   sub agent 写笔记时读取 `temp/ingest/<name>.md`(已含 frontmatter 元信息 + 段落分隔符 `<!-- 第 N 段 -->`),不读原 office/image 二进制。
+   写完笔记后由 skill 删除 `temp/ingest/<name>.md`(整个 ingest 流程结束后统一清理 temp/ingest/)。
+
 5. 根据 `02_读书笔记/` 的模板要求，撰写对应文章的内容和知识点，**直接保存入库，无需用户确认**。**打标前必须先 Read** [`00_模板/标签词表.md`](../../00_模板/标签词表.md) 锁定 4 轴枚举，frontmatter `tags:` 字段仅从 §2 词表 35 个枚举值中选取，禁止自由 tag。
 6. ~~更新仓库根的 `Index.md`，为每篇新归档的资料添加索引条目~~（已上提为强制步骤 9）
 8. 完成后告诉我处理了多少篇，分别归入了哪些分类（按源类型拆分报告：PDF N 篇 / MD M 篇）。**并在末尾追加「建议更新词表」段**——汇总阶段 2 sub agent 的词表更新候选，按候选值 + 词表段二元组 dedup 后告知用户，由用户显式确认是否补入 `00_模板/标签词表.md`：
@@ -140,6 +159,8 @@ sub agent prompt 必须包含：
 | --- | --- | --- | --- |
 | `pdf` | Read 工具读 PDF 二进制；或 pdf-plus 插件 | 可能需从 PDF 头部/正文推断 | 带页码（如 `原文片段 (p.3)：`） |
 | `md`（web clipper） | Read 工具直接读文本 | frontmatter 通常自带 `title` / `author` / `published`；sub agent **只取 `title` 和 `author`**，**不**取原文 `tags: clippings`（那是源标记，非 4 轴 tag） | **不**带页码；原文 URL（如有）放「我的思考」段作上下文，但**不**写入 frontmatter `source:`（那里必须指向 PDF/md 本体 wiki-link） |
+| `office`(pptx/docx/xlsx) | Read 工具读 `temp/ingest/<name>.md`(由 `convert-office.mjs` 预转) | 读 md frontmatter 取 `source_file` / `source_type`,作者从正文推断 | **不**带页码,标注 `原文片段 (<源文件名>, 第 N 段):`;xlsx 标注 sheet 名 |
+| `image`(png/jpg/jpeg) | Read 工具读 `temp/ingest/<name>.md`(PaddleOCR 结果) | OCR 可能不识别作者/日期,留空 | 同 office,标注 `原文片段 (<源文件名>, OCR 第 N 段):` |
 
 sub agent 只读 source + 写目标笔记。
 **不要追加 `## Related Pages` 段**——那是阶段 3 任务 D 的职责，越界会导致 slug 漂移风险。
