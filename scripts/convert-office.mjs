@@ -62,12 +62,62 @@ export function runCommand(cmd, args, timeoutMs = 60_000) {
   });
 }
 
+export async function convertViaLibreoffice(input, output, format) {
+  const tmpdir = dirname(output);
+  const args = ['--headless', '--convert-to', format, '--outdir', tmpdir, input];
+  const which = await runCommand('which', ['libreoffice'], 5_000);
+  if (which.code !== 0) {
+    return { ok: false, error: 'tool_missing', stderr: 'libreoffice not in PATH', code: 2 };
+  }
+  const r = await runCommand('libreoffice', args, 60_000);
+  if (r.code !== 0) return { ok: false, error: 'convert_failed', stderr: r.stderr, code: 1 };
+  const basename = input.replace(/\\/g, '/').split('/').pop().replace(/\.[^.]+$/, '');
+  const generated = `${tmpdir}/${basename}.${format}`;
+  const fs = await import('node:fs/promises');
+  const body = await fs.readFile(generated, 'utf8');
+  await fs.unlink(generated).catch(() => {});
+  return { ok: true, body, pageCount: countSlides(body) };
+}
+
+export async function convertDocxWithPandocFallback(input, output) {
+  const whichP = await runCommand('which', ['pandoc'], 5_000);
+  if (whichP.code === 0) {
+    const r = await runCommand('pandoc', ['-f', 'docx', '-t', 'markdown', '-o', output, input], 60_000);
+    if (r.code === 0) {
+      const fs = await import('node:fs/promises');
+      const body = await fs.readFile(output, 'utf8');
+      return { ok: true, body, pageCount: 0 };
+    }
+  }
+  // fallback libreoffice
+  return convertViaLibreoffice(input, output, 'md');
+}
+
+export function countSlides(mdBody) {
+  return (mdBody.match(/<!--\s*第\s*\d+\s*段\s*-->/g) || []).length;
+}
+
 export async function main() {
   const args = parseCli();
   await mkdir(dirname(args.output), { recursive: true });
-  // 占位:后续 task 替换为真实 fork
-  await writeFile(args.output, `# stub for ${args.type}\n`, 'utf8');
-  console.log(JSON.stringify({ ok: true, md_path: args.output, char_count: 0, page_count: 0 }));
+  let result;
+  if (args.type === 'pptx') {
+    result = await convertViaLibreoffice(args.input, args.output, 'md');
+  } else if (args.type === 'docx') {
+    result = await convertDocxWithPandocFallback(args.input, args.output);
+  } else if (args.type === 'xlsx') {
+    failAndExit('not_implemented', 'xlsx branch comes in Task 4', 1);
+  } else {
+    failAndExit('not_implemented', `image branch (${args.type}) comes in Task 5`, 1);
+  }
+  if (!result.ok) failAndExit(result.error, result.stderr, result.code);
+  await writeFile(args.output, result.body, 'utf8');
+  console.log(JSON.stringify({
+    ok: true,
+    md_path: args.output,
+    char_count: result.body.length,
+    page_count: result.pageCount ?? 0,
+  }));
 }
 
 const isMain = import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`;
