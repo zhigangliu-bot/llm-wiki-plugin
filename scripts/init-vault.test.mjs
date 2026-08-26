@@ -235,6 +235,70 @@ describe('runInit (integration)', () => {
     const keepStat = await stat(join(vault, '03_问答区/_cross/.gitkeep'));
     assert.ok(keepStat.isFile(), '03_问答区/_cross/.gitkeep must be a file');
   });
+
+  test('copies 4 plugin scripts to vault/scripts/ on empty vault (scriptsWritten=4)', async () => {
+    const vault = await makeVault('rs1');
+    const report = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
+    assert.equal(report.counters.scriptsWritten, 4);
+    assert.equal(report.errors.length, 0);
+    // 4 个文件确实存在
+    for (const rel of [
+      'scripts/init-vault.mjs',
+      'scripts/sync-pdf-notes.mjs',
+      'scripts/check-update.mjs',
+      'scripts/lint-wiki.mjs',
+    ]) {
+      const s = await stat(join(vault, rel));
+      assert.ok(s.isFile(), `${rel} must exist in vault/scripts/`);
+    }
+  });
+
+  test('overwrites user-modified scripts in vault/scripts/ on re-init (no copyIfMissing)', async () => {
+    const vault = await makeVault('rs2');
+    // 用户手工预放一个"被改过"的脚本
+    await mkdir(join(vault, 'scripts'), { recursive: true });
+    await writeFile(join(vault, 'scripts/init-vault.mjs'), '// USER MODIFIED CONTENT', 'utf8');
+
+    const report = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
+    assert.equal(report.exitCode, 0);
+    assert.equal(report.counters.scriptsWritten, 4);  // 含覆盖的那 1 个
+    // 用户修改**确实被覆盖**(断言内容哈希 == 源哈希)
+    const pluginSrc = await readFile(join(PLUGIN_ROOT, 'scripts/init-vault.mjs'), 'utf8');
+    const vaultDst = await readFile(join(vault, 'scripts/init-vault.mjs'), 'utf8');
+    assert.equal(vaultDst, pluginSrc, 'user-modified script must be overwritten by plugin source');
+    assert.ok(!vaultDst.includes('USER MODIFIED CONTENT'), 'user content must be gone');
+  });
+
+  test('missing one plugin script source: exitCode 3 + asset-missing error, other 3 still copied', async () => {
+    const vault = await makeVault('rs3');
+    // 临时把 sync-pdf-notes.mjs 移走,模拟"plugin 资产缺失"
+    const original = join(PLUGIN_ROOT, 'scripts/sync-pdf-notes.mjs');
+    const stash = join(PLUGIN_ROOT, 'scripts/sync-pdf-notes.mjs.stash');
+    const { rename } = await import('node:fs/promises');
+    await rename(original, stash);
+    try {
+      const report = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
+      assert.equal(report.exitCode, 3);  // asset-missing 优先于 copy-failed
+      const err = report.errors.find((e) => e.kind === 'asset-missing');
+      assert.ok(err, 'must have asset-missing error');
+      assert.equal(err.src, original);
+      // 其他 3 个脚本仍被拷贝
+      assert.equal(report.counters.scriptsWritten, 3);
+      assert.equal(
+        (await stat(join(vault, 'scripts/init-vault.mjs'))).isFile(),
+        true,
+        'init-vault.mjs must still be copied'
+      );
+      assert.equal(
+        (await stat(join(vault, 'scripts/lint-wiki.mjs'))).isFile(),
+        true,
+        'lint-wiki.mjs must still be copied'
+      );
+    } finally {
+      // 还原:无论 case pass/fail 都要把脚本放回去,避免污染后续测试
+      await rename(stash, original);
+    }
+  });
 });
 
 describe('injectClaudeMd', () => {
