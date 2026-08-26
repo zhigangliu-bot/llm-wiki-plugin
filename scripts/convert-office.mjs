@@ -141,6 +141,37 @@ export function csvToMdTable(csv) {
   return [header, sep, ...rows.slice(1)].map((r) => `| ${r.join(' | ')} |`).join('\n');
 }
 
+export async function convertImageViaPaddleocr(input, output) {
+  const which = await runCommand('which', ['paddleocr'], 5_000);
+  if (which.code !== 0) {
+    return { ok: false, error: 'tool_missing', stderr: 'paddleocr not in PATH; pip install paddleocr paddlepaddle', code: 2 };
+  }
+  const args = ['--image_dir=' + input, '--lang=ch', '--use_angle_cls=true', '--use_gpu=false'];
+  const r = await runCommand('paddleocr', args, 60_000);
+  if (r.code !== 0) return { ok: false, error: 'convert_failed', stderr: r.stderr, code: 1 };
+  const lines = parsePaddleocrStdout(r.stdout);
+  const body = `<!-- 第 1 段 (OCR result) -->\n\n${lines.join('\n\n')}`;
+  return { ok: true, body, pageCount: lines.length };
+}
+
+export function parsePaddleocrStdout(stdout) {
+  // paddleocr CLI 默认输出 JSON 数组,每项含 rec_texts
+  const lines = [];
+  for (const raw of stdout.split('\n')) {
+    const s = raw.trim();
+    if (!s.startsWith('[')) continue;
+    try {
+      const arr = JSON.parse(s);
+      if (Array.isArray(arr)) {
+        for (const item of arr) {
+          if (Array.isArray(item?.rec_texts)) lines.push(item.rec_texts.join(' '));
+        }
+      }
+    } catch { /* 忽略非 JSON 行 */ }
+  }
+  return lines.length ? lines : [stdout.trim()].filter(Boolean);
+}
+
 export async function main() {
   const args = parseCli();
   await mkdir(dirname(args.output), { recursive: true });
@@ -152,7 +183,8 @@ export async function main() {
   } else if (args.type === 'xlsx') {
     result = await convertXlsxMultiSheet(args.input, args.output);
   } else {
-    failAndExit('not_implemented', `image branch (${args.type}) comes in Task 5`, 1);
+    // png / jpg / jpeg
+    result = await convertImageViaPaddleocr(args.input, args.output);
   }
   if (!result.ok) failAndExit(result.error, result.stderr, result.code);
   await writeFile(args.output, result.body, 'utf8');
