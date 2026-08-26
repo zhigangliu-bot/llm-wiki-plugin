@@ -33,6 +33,7 @@ cd "f:/llm-wiki-plugin" && node scripts/init-vault.mjs "<vaultRoot>"
 vault: <vaultRoot>
 创建目录: <dirsCreated> (新) / <dirsSkipped> (已存在)
 拷贝文件: <filesCopied> (新) / <filesSkipped> (已跳过,保留你的修改)
+拷贝脚本: <scriptsWritten> (每次 init 覆盖写,含新增与升级)
 顶层 md: <placeholdersCreated> 个占位文件
 CLAUDE.md: <claudeMd.status>
 错误: <errors.length>
@@ -65,6 +66,7 @@ CLAUDE.md: <claudeMd.status>
 - **不创建** `.obsidian/`(Obsidian 首次打开会自动生成)
 - 重复调用 init 是安全的(幂等);同一 vault 第二次跑只输出更多"已存在"
 - `placeholdersCreated` 实际包含 `Index.md` / `Log.md` / `Inbox/.gitkeep` / `Inbox/web_clipper/.gitkeep` / `03_问答区/_cross/.gitkeep` 五件套,字段名偏窄但语义正确(本期保留,后续若分裂再调整)
+- 每次 init 都会**覆盖** vault/scripts/ 下已有脚本(plugin 升级同步语义);用户对脚本的本地修改会被覆盖丢失
 
 # 资产清单
 
