@@ -23,6 +23,7 @@ import {
   DIRECTORIES,
   TOP_LEVEL_MD,
   PLACEHOLDER_FILES,
+  SCRIPT_FILES,
   CLAUDE_BEGIN_MARKER,
   CLAUDE_END_MARKER,
 } from './init-vault.mjs';
@@ -153,7 +154,7 @@ describe('runInit (integration)', () => {
     assert.equal(report.counters.placeholdersCreated, 5);
     assert.equal(report.counters.placeholdersSkipped, 0);
     assert.equal(report.claudeMd.status, 'created');
-    assert.equal(report.counters.scriptsWritten, 4);  // 4 个脚本被拷贝/覆盖到 vault
+    assert.equal(report.counters.scriptsWritten, SCRIPT_FILES.length);  // 白名单脚本被全部拷贝/覆盖到 vault
     assert.equal(report.errors.length, 0);
   });
 
@@ -173,7 +174,7 @@ describe('runInit (integration)', () => {
     assert.equal(report.counters.placeholdersCreated, 4); // 5 - 1 (Index.md 已存在)
     assert.equal(report.claudeMd.status, 'created');
     assert.equal(await readFile(join(vault, '00_模板/读书笔记模板.md'), 'utf8'), 'USER CONTENT');
-    assert.equal(report.counters.scriptsWritten, 4);  // 脚本总是覆盖写,与资产不同
+    assert.equal(report.counters.scriptsWritten, SCRIPT_FILES.length);  // 脚本总是覆盖写,与资产不同
   });
 
   test('non-existent vault: exitCode 2 + vault-not-found error', async () => {
@@ -215,7 +216,7 @@ describe('runInit (integration)', () => {
     assert.equal(r2.counters.filesSkipped, 4);
     assert.equal(r2.counters.placeholdersCreated, 0);  // 5 个都已存在
     assert.equal(r2.counters.placeholdersSkipped, 5);
-    assert.equal(r2.counters.scriptsWritten, 4);  // 第二次也覆盖写 4 个
+    assert.equal(r2.counters.scriptsWritten, SCRIPT_FILES.length);  // 第二次也覆盖写所有白名单脚本
     assert.equal(r2.errors.length, 0);
     assert.equal(r2.exitCode, 0);
 
@@ -236,18 +237,13 @@ describe('runInit (integration)', () => {
     assert.ok(keepStat.isFile(), '03_问答区/_cross/.gitkeep must be a file');
   });
 
-  test('copies 4 plugin scripts to vault/scripts/ on empty vault (scriptsWritten=4)', async () => {
+  test(`copies ${SCRIPT_FILES.length} plugin scripts to vault/scripts/ on empty vault (scriptsWritten=${SCRIPT_FILES.length})`, async () => {
     const vault = await makeVault('rs1');
     const report = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
-    assert.equal(report.counters.scriptsWritten, 4);
+    assert.equal(report.counters.scriptsWritten, SCRIPT_FILES.length);
     assert.equal(report.errors.length, 0);
-    // 4 个文件确实存在
-    for (const rel of [
-      'scripts/init-vault.mjs',
-      'scripts/sync-pdf-notes.mjs',
-      'scripts/check-update.mjs',
-      'scripts/lint-wiki.mjs',
-    ]) {
+    // 白名单内所有文件确实存在
+    for (const rel of SCRIPT_FILES) {
       const s = await stat(join(vault, rel));
       assert.ok(s.isFile(), `${rel} must exist in vault/scripts/`);
     }
@@ -261,7 +257,7 @@ describe('runInit (integration)', () => {
 
     const report = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
     assert.equal(report.exitCode, 0);
-    assert.equal(report.counters.scriptsWritten, 4);  // 含覆盖的那 1 个
+    assert.equal(report.counters.scriptsWritten, SCRIPT_FILES.length);  // 含覆盖的那 1 个
     // 用户修改**确实被覆盖**(断言内容哈希 == 源哈希)
     const pluginSrc = await readFile(join(PLUGIN_ROOT, 'scripts/init-vault.mjs'), 'utf8');
     const vaultDst = await readFile(join(vault, 'scripts/init-vault.mjs'), 'utf8');
@@ -269,7 +265,7 @@ describe('runInit (integration)', () => {
     assert.ok(!vaultDst.includes('USER MODIFIED CONTENT'), 'user content must be gone');
   });
 
-  test('missing one plugin script source: exitCode 3 + asset-missing error, other 3 still copied', async () => {
+  test(`missing one plugin script source: exitCode 3 + asset-missing error, other ${SCRIPT_FILES.length - 1} still copied`, async () => {
     const vault = await makeVault('rs3');
     // 临时把 sync-pdf-notes.mjs 移走,模拟"plugin 资产缺失"
     const original = join(PLUGIN_ROOT, 'scripts/sync-pdf-notes.mjs');
@@ -282,8 +278,8 @@ describe('runInit (integration)', () => {
       const err = report.errors.find((e) => e.kind === 'asset-missing');
       assert.ok(err, 'must have asset-missing error');
       assert.equal(err.src, original);
-      // 其他 3 个脚本仍被拷贝
-      assert.equal(report.counters.scriptsWritten, 3);
+      // 其他 (SCRIPT_FILES.length - 1) 个脚本仍被拷贝
+      assert.equal(report.counters.scriptsWritten, SCRIPT_FILES.length - 1);
       assert.equal(
         (await stat(join(vault, 'scripts/init-vault.mjs'))).isFile(),
         true,

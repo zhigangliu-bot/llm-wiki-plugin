@@ -205,6 +205,7 @@ export const SCRIPT_FILES = [
   'scripts/sync-pdf-notes.mjs',
   'scripts/check-update.mjs',
   'scripts/lint-wiki.mjs',
+  'scripts/convert-office.mjs',
 ];
 
 /* ===================== runInit 集成函数 ===================== */
