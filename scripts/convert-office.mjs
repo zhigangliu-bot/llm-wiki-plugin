@@ -187,11 +187,14 @@ export async function main() {
     result = await convertImageViaPaddleocr(args.input, args.output);
   }
   if (!result.ok) failAndExit(result.error, result.stderr, result.code);
-  await writeFile(args.output, result.body, 'utf8');
+  const today = new Date().toISOString().slice(0, 10);
+  const basename = args.input.replace(/\\/g, '/').split('/').pop();
+  const fm = `---\nsource_file: ${basename}\nsource_type: ${args.type}\nconverted_at: ${today}\n---\n\n`;
+  await writeFile(args.output, fm + result.body, 'utf8');
   console.log(JSON.stringify({
     ok: true,
     md_path: args.output,
-    char_count: result.body.length,
+    char_count: (fm + result.body).length,
     page_count: result.pageCount ?? 0,
   }));
 }
