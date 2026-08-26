@@ -114,9 +114,12 @@ node scripts/convert-office.mjs --input=/dev/null --output=/dev/null --type=pptx
 8. 完成后告诉我处理了多少篇，分别归入了哪些分类（按源类型拆分报告：PDF N 篇 / MD M 篇）。**并在末尾追加「建议更新词表」段**——汇总阶段 2 sub agent 的词表更新候选，按候选值 + 词表段二元组 dedup 后告知用户，由用户显式确认是否补入 `00_模板/标签词表.md`：
 
 ```
-本次 ingest 处理 N 篇，归入以下分类：
+本次 ingest 处理 N 篇,归入以下分类:
 - PDF: X 篇
-- MD: Y 篇
+- MD(web clipper): Y 篇
+- Office(PPT/Word/Excel): Z 篇
+- Image(OCR): W 篇
+- Office/Image 转换失败(已跳过): K 篇
 
 【建议更新词表 00_模板/标签词表.md】以下候选值在多篇文章中出现但词表未枚举：
 1. §2 domain `xxx`：在<文章1> + <文章2> 主题段出现，与已有 16 个 domain 区分度为……
