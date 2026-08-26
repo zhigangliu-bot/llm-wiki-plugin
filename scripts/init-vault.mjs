@@ -278,6 +278,25 @@ export async function runInit({ vaultRoot, pluginRoot = DEFAULT_PLUGIN_ROOT }) {
     else if (r.action === 'failed') errors.push(r.error);
   }
 
+  // 3.5 拷贝脚本到 vault 根的 scripts/ 目录(直接覆盖,不沿用 copyIfMissing)
+  for (const relPath of SCRIPT_FILES) {
+    const src = path.join(pluginRoot, relPath);
+    const dst = path.join(vaultRoot, relPath);
+    try {
+      await fs.access(src);
+    } catch {
+      errors.push({ kind: 'asset-missing', src });
+      continue;
+    }
+    try {
+      await fs.mkdir(path.dirname(dst), { recursive: true });
+      await fs.copyFile(src, dst);
+      counters.scriptsWritten += 1;
+    } catch (e) {
+      errors.push({ kind: 'copy-failed', src, dst, error: { code: e.code, message: e.message } });
+    }
+  }
+
   // 4. 顶层 md + 占位文件
   for (const f of [...TOP_LEVEL_MD, ...PLACEHOLDER_FILES]) {
     try {
