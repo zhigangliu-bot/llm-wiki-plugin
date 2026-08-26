@@ -153,6 +153,7 @@ describe('runInit (integration)', () => {
     assert.equal(report.counters.placeholdersCreated, 5);
     assert.equal(report.counters.placeholdersSkipped, 0);
     assert.equal(report.claudeMd.status, 'created');
+    assert.equal(report.counters.scriptsWritten, 4);  // 4 个脚本被拷贝/覆盖到 vault
     assert.equal(report.errors.length, 0);
   });
 
@@ -172,6 +173,7 @@ describe('runInit (integration)', () => {
     assert.equal(report.counters.placeholdersCreated, 4); // 5 - 1 (Index.md 已存在)
     assert.equal(report.claudeMd.status, 'created');
     assert.equal(await readFile(join(vault, '00_模板/读书笔记模板.md'), 'utf8'), 'USER CONTENT');
+    assert.equal(report.counters.scriptsWritten, 4);  // 脚本总是覆盖写,与资产不同
   });
 
   test('non-existent vault: exitCode 2 + vault-not-found error', async () => {
@@ -213,6 +215,7 @@ describe('runInit (integration)', () => {
     assert.equal(r2.counters.filesSkipped, 4);
     assert.equal(r2.counters.placeholdersCreated, 0);  // 5 个都已存在
     assert.equal(r2.counters.placeholdersSkipped, 5);
+    assert.equal(r2.counters.scriptsWritten, 4);  // 第二次也覆盖写 4 个
     assert.equal(r2.errors.length, 0);
     assert.equal(r2.exitCode, 0);
 
