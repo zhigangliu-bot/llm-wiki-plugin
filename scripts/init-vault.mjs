@@ -217,7 +217,7 @@ export const SCRIPT_FILES = [
  * @param {string} [opts.pluginRoot]  默认 = 当前脚本的父目录(plugin 仓根)
  * @returns {Promise<{
  *   exitCode: number,
- *   counters: {dirsCreated: number, dirsSkipped: number, filesCopied: number, filesSkipped: number, placeholdersCreated: number, placeholdersSkipped: number},
+ *   counters: {dirsCreated: number, dirsSkipped: number, filesCopied: number, filesSkipped: number, placeholdersCreated: number, placeholdersSkipped: number, scriptsWritten: number},
  *   claudeMd: {status: string},
  *   errors: object[]
  * }>}
