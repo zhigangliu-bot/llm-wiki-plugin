@@ -43,7 +43,7 @@ node scripts/convert-office.mjs --input=/dev/null --output=/dev/null --type=pptx
 
 # Inbox 多源扫描
 
-`Inbox/` 是新资料暂存区。本 skill 同时识别两类源，但**走两条不同的同步路径**——因为现有 `sync-pdf-notes.mjs` 只识别 `.pdf` 扩展名（见 `scripts/sync-pdf-notes.mjs:167` 的 `walkForPdfs` 过滤），不能直接复用：
+`Inbox/` 是新资料暂存区。本 skill 同时识别 6 类源(pdf / web_clipper md / pptx / docx / xlsx / image),但**走多条不同的同步路径**——因为现有 `sync-pdf-notes.mjs` 只识别 `.pdf` 扩展名(见 `scripts/sync-pdf-notes.mjs:167` 的 `walkForPdfs` 过滤),不能直接复用:
 
 | 源目录 | 文件类型 | 物理处理 | 笔记模板 |
 | --- | --- | --- | --- |
