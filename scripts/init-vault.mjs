@@ -231,6 +231,7 @@ export async function runInit({ vaultRoot, pluginRoot = DEFAULT_PLUGIN_ROOT }) {
     filesSkipped: 0,
     placeholdersCreated: 0,
     placeholdersSkipped: 0,
+    scriptsWritten: 0,
   };
 
   // 1. 校验 vault
