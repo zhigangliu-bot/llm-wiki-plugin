@@ -5,7 +5,7 @@ description: 整理、Inbox、web clipper
 
 # 触发条件
 
-当用户说：整理、Inbox、web clipper
+当用户说：整理、Inbox、web clipper、office、ppt、word、excel、图片
 
 # 执行前置（强制）
 
@@ -22,6 +22,24 @@ description: 整理、Inbox、web clipper
 - 用相对路径 `../../../scripts/...` 跨层跳 —— 不可移植，vault 路径变化就崩
 
 init 阶段会保证 `<vaultRoot>/scripts/` 存在（见 `llm-wiki-plugin-init` 步骤 2.5），但**不保证 cwd**。
+
+# convert-office 依赖前置
+
+新增 office / image 类型在归档前要调 `scripts/convert-office.mjs`,依赖 3 个外部 CLI(按用途):
+
+| 类型 | 依赖 | 缺失行为 |
+|---|---|---|
+| `.pptx` / `.xlsx` | `libreoffice` | **skill 中止**,要求 `apt install libreoffice` / `brew install --cask libreoffice` |
+| `.docx` | `pandoc`(优先) / `libreoffice`(fallback) | pandoc 缺失自动降级到 libreoffice;两者皆无则中止 |
+| `.png` / `.jpg` / `.jpeg` | `paddleocr` | **仅跳过图片**,其他类型继续;`pip install paddleocr paddlepaddle` |
+
+skill 启动时跑:
+
+```bash
+node scripts/convert-office.mjs --input=/dev/null --output=/dev/null --type=pptx 2>&1 | head -1
+```
+
+用返回的 `error: tool_missing` 判断依赖,缺失时打印安装命令并按上表行为处理。
 
 # Inbox 双源扫描
 
