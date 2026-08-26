@@ -6,6 +6,7 @@
 import { parseArgs } from 'node:util';
 import { writeFile, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import { spawn } from 'node:child_process';
 
 const ALLOWED_TYPES = ['pptx', 'docx', 'xlsx', 'png', 'jpg', 'jpeg'];
 
@@ -29,6 +30,36 @@ function parseCli() {
 export function failAndExit(error, detail, code) {
   console.log(JSON.stringify({ ok: false, error, stderr: detail }));
   process.exit(code);
+}
+
+/**
+ * 同步 spawn + 捕获 stdout/stderr + 超时 kill。
+ * @param {string} cmd
+ * @param {string[]} args
+ * @param {number} timeoutMs
+ * @returns {Promise<{stdout: string, stderr: string, code: number}>}
+ */
+export function runCommand(cmd, args, timeoutMs = 60_000) {
+  return new Promise((resolve) => {
+    let stdout = '';
+    let stderr = '';
+    let killed = false;
+    const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const timer = setTimeout(() => {
+      killed = true;
+      child.kill('SIGKILL');
+    }, timeoutMs);
+    child.stdout.on('data', (b) => (stdout += b.toString()));
+    child.stderr.on('data', (b) => (stderr += b.toString()));
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      resolve({ stdout, stderr, code: killed ? 124 : code ?? 1 });
+    });
+    child.on('error', (err) => {
+      clearTimeout(timer);
+      resolve({ stdout, stderr: stderr + String(err), code: 127 });
+    });
+  });
 }
 
 export async function main() {
