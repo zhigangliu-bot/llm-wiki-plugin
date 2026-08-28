@@ -31,7 +31,7 @@ init 阶段会保证 `<vaultRoot>/scripts/` 存在（见 `llm-wiki-plugin-init` 
 |---|---|---|
 | `.pptx` / `.xlsx` | `libreoffice` | **skill 中止**,要求 `apt install libreoffice` / `brew install --cask libreoffice` |
 | `.docx` | `pandoc`(优先) / `libreoffice`(fallback) | pandoc 缺失自动降级到 libreoffice;两者皆无则中止 |
-| `.png` / `.jpg` / `.jpeg` | `paddleocr` | **仅跳过图片**,其他类型继续;`pip install paddleocr paddlepaddle` |
+| `.png` / `.jpg` / `.jpeg` | `paddleocr`(Python API,**3.x**) | **仅跳过图片**,其他类型继续;`pip install paddleocr paddlepaddle`;**首次运行 PaddleOCR 会下载 ~1GB 模型到 `~/.paddlex/`,需 3–5 分钟冷启动**(脚本内置 300s timeout) |
 
 skill 启动时跑:
 

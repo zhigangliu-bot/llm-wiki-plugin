@@ -33,6 +33,115 @@ export function failAndExit(error, detail, code) {
 }
 
 /**
+ * 探测系统中带 paddleocr 的 python 可执行路径。
+ *
+ * Node `spawn('python', ...)` 在 Windows 上会按 Windows PATH 解析,可能拿到
+ * 系统 Python (如 C:\Python314) 而不是用户 venv 的 python,导致
+ * `import paddleocr` 失败,即便用户在 bash 下 `python` 能找到 venv。
+ * 这里按优先级探测:
+ *   1) 直接 spawn 'python' (兼容 POSIX 习惯 + 大多数 Windows venv 激活后)
+ *   2) 显式探测 PATH 中每个 python.exe
+ *   3) 用户家目录下常见 venv 路径
+ * 返回 null 表示没找到。
+ */
+export async function findPythonWithPaddleocr() {
+  const path = await import('node:path');
+  const os = await import('node:os');
+  const fs = await import('node:fs/promises');
+
+  // 先 spawn 一次 'python' —— 不一定能 import paddleocr,但能确认 python 可用
+  const probeSimple = await runCommand('python', ['-c', 'print("ok")'], 5_000);
+  if (probeSimple.code === 0) {
+    const probeImp = await runCommand('python', ['-c', 'import paddleocr'], 5_000);
+    if (probeImp.code === 0) return 'python';
+  }
+
+  // 列出 PATH 中的 python / python3,挨个试
+  const which = await runCommand('where', ['python'], 5_000);
+  const candidates = [];
+  if (which.code === 0) {
+    for (const line of which.stdout.split(/\r?\n/)) {
+      const p = line.trim();
+      if (p && p.endsWith('python.exe')) candidates.push(p);
+    }
+  }
+  const which3 = await runCommand('where', ['python3'], 5_000);
+  if (which3.code === 0) {
+    for (const line of which3.stdout.split(/\r?\n/)) {
+      const p = line.trim();
+      if (p && !candidates.includes(p)) candidates.push(p);
+    }
+  }
+
+  // 常见 venv 路径(用户可能建了 .venv-ocr 或 venv 在家目录 + cwd 祖先目录)
+  const home = os.homedir();
+  const homeVenvs = [
+    path.join(home, '.venv-ocr', 'Scripts', 'python.exe'),
+    path.join(home, '.venv-ocr', 'bin', 'python'),
+    path.join(home, 'venv', 'Scripts', 'python.exe'),
+    path.join(home, 'venv', 'bin', 'python'),
+  ];
+  for (const v of homeVenvs) {
+    try {
+      await fs.access(v);
+      candidates.push(v);
+    } catch { /* 不存在 */ }
+  }
+
+  // 从 cwd 向上找 5 层,看是否有 .venv-ocr / .venv / venv
+  let dir = process.cwd();
+  for (let i = 0; i < 5; i++) {
+    const candidates2 = [
+      path.join(dir, '.venv-ocr', 'Scripts', 'python.exe'),
+      path.join(dir, '.venv-ocr', 'bin', 'python'),
+      path.join(dir, '.venv', 'Scripts', 'python.exe'),
+      path.join(dir, '.venv', 'bin', 'python'),
+      path.join(dir, 'venv', 'Scripts', 'python.exe'),
+      path.join(dir, 'venv', 'bin', 'python'),
+    ];
+    for (const v of candidates2) {
+      try {
+        await fs.access(v);
+        if (!candidates.includes(v)) candidates.push(v);
+      } catch { /* 不存在 */ }
+    }
+    // 同时看 cwd 的 parent 下所有 sibling 目录(用户可能把 venv 放在平级目录,
+    // 如 F:\myself-marketplace\.venv-ocr 与 F:\llm-wiki-plugin 平级)
+    const parent = path.dirname(dir);
+    try {
+      const sibs = await fs.readdir(parent);
+      for (const sib of sibs) {
+        const sibDir = path.join(parent, sib);
+        if (sibDir === dir) continue;
+        const tries = [
+          path.join(sibDir, '.venv-ocr', 'Scripts', 'python.exe'),
+          path.join(sibDir, '.venv-ocr', 'bin', 'python'),
+          path.join(sibDir, '.venv', 'Scripts', 'python.exe'),
+          path.join(sibDir, '.venv', 'bin', 'python'),
+          path.join(sibDir, 'venv', 'Scripts', 'python.exe'),
+          path.join(sibDir, 'venv', 'bin', 'python'),
+        ];
+        for (const v of tries) {
+          try {
+            await fs.access(v);
+            if (!candidates.includes(v)) candidates.push(v);
+          } catch { /* 不存在 */ }
+        }
+      }
+    } catch { /* parent 不存在或权限 */ }
+    const nextParent = path.dirname(dir);
+    if (nextParent === dir) break;
+    dir = nextParent;
+  }
+
+  for (const cand of candidates) {
+    const r = await runCommand(cand, ['-c', 'import paddleocr'], 5_000);
+    if (r.code === 0) return cand;
+  }
+  return null;
+}
+
+/**
  * 同步 spawn + 捕获 stdout/stderr + 超时 kill。
  * @param {string} cmd
  * @param {string[]} args
@@ -141,31 +250,91 @@ export function csvToMdTable(csv) {
   return [header, sep, ...rows.slice(1)].map((r) => `| ${r.join(' | ')} |`).join('\n');
 }
 
+// 内嵌 Python 脚本: 调 PaddleOCR Python API,对单张图片 OCR,逐行输出 JSON 到 stdout
+// 每行:  {"page": N, "texts": ["line1", "line2", ...]}
+// 必须 -u(无缓冲)和 flush=True,否则 pipe 模式下 stdout 会 block-buffer,PaddleOCR
+// predict() 返回前 stdout 没东西,PaddleOCR 内部报错时我们也看不见 Python traceback。
+const PADDLEOCR_PYTHON_SCRIPT = `
+import sys, json
+print('python-script-start', flush=True)
+from paddleocr import PaddleOCR
+img_path = sys.argv[1]
+ocr = PaddleOCR(use_doc_orientation_classify=False, use_doc_unwarping=False, use_textline_orientation=False, lang='ch')
+results = ocr.predict(img_path)
+for i, r in enumerate(results):
+    texts = r.get('rec_texts', []) if isinstance(r, dict) else []
+    print(json.dumps({'page': i + 1, 'texts': texts}, ensure_ascii=False), flush=True)
+print('python-script-done', flush=True)
+`;
+
 export async function convertImageViaPaddleocr(input, output) {
-  const which = await runCommand('which', ['paddleocr'], 5_000);
-  if (which.code !== 0) {
-    return { ok: false, error: 'tool_missing', stderr: 'paddleocr not in PATH; pip install paddleocr paddlepaddle', code: 2 };
+  // 依赖检测: 找能 import paddleocr 的 python (Windows node spawn 不会自动激活 venv)
+  const pythonCmd = await findPythonWithPaddleocr();
+  if (!pythonCmd) {
+    return {
+      ok: false,
+      error: 'tool_missing',
+      stderr: 'paddleocr Python 包未安装或 python 不在 PATH;pip install paddleocr paddlepaddle',
+      code: 2,
+    };
   }
-  const args = ['--image_dir=' + input, '--lang=ch', '--use_angle_cls=true', '--use_gpu=false'];
-  const r = await runCommand('paddleocr', args, 60_000);
-  if (r.code !== 0) return { ok: false, error: 'convert_failed', stderr: r.stderr, code: 1 };
-  const lines = parsePaddleocrStdout(r.stdout);
-  const body = `<!-- 第 1 段 (OCR result) -->\n\n${lines.join('\n\n')}`;
-  return { ok: true, body, pageCount: lines.length };
+  // 把脚本写到 temp 文件再调,避免 -c 模式 + 长 script 触发 Windows argv 解析问题
+  // (调试发现 `python -c "<大段脚本>"` 经 node spawn 时,PaddleOCR 报"找不到文件"并 exit 1;
+  // 同样的脚本通过 -u 直跑或写到文件都行)。脚本路径在 cwd/temp/ocr-script-<pid>.py。
+  const { writeFile: wf, unlink } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const scriptPath = path.join(process.cwd(), 'temp', `ocr-script-${process.pid}.py`);
+  await wf(scriptPath, PADDLEOCR_PYTHON_SCRIPT, 'utf8');
+  try {
+    // 调 python 跑 OCR;PaddleOCR 3.x 首次加载模型(v6 PP-OCRv6 det+rec)实测
+    // 在 Windows + node spawn 下需要 ~3-5 分钟(PaddleX 缓存目录 `C:\Users\<u>\.paddlex\`
+    // 命中后下降到几秒)。给 5 分钟给冷启动留余量。
+    const r = await runCommand(pythonCmd, ['-u', scriptPath, input], 300_000);
+    if (r.code !== 0) return { ok: false, error: 'convert_failed', stderr: r.stderr || r.stdout, code: 1 };
+    const sections = parsePaddleocrPythonStdout(r.stdout);
+    const body = sections.length
+      ? sections.map((s) => `<!-- 第 ${s.page} 段 (OCR result) -->\n\n${s.texts.join('\n')}`).join('\n\n')
+      : `<!-- 第 1 段 (OCR result) -->\n\n${r.stdout.trim()}`;
+    return { ok: true, body, pageCount: sections.length };
+  } finally {
+    await unlink(scriptPath).catch(() => {});
+  }
 }
 
+export function parsePaddleocrPythonStdout(stdout) {
+  // 每行一个 JSON: {"page": N, "texts": [...]}
+  const sections = [];
+  for (const raw of stdout.split('\n')) {
+    const s = raw.trim();
+    if (!s.startsWith('{')) continue;
+    try {
+      const obj = JSON.parse(s);
+      if (Array.isArray(obj?.texts)) {
+        sections.push({ page: obj.page ?? sections.length + 1, texts: obj.texts });
+      }
+    } catch { /* 忽略非 JSON 行 */ }
+  }
+  return sections;
+}
+
+// 保留旧函数,兼容 v2 CLI 输出格式 [{rec_texts: [...]}] 和 v3 Python API 输出 {page, texts}
 export function parsePaddleocrStdout(stdout) {
-  // paddleocr CLI 默认输出 JSON 数组,每项含 rec_texts
   const lines = [];
   for (const raw of stdout.split('\n')) {
     const s = raw.trim();
-    if (!s.startsWith('[')) continue;
+    if (!s) continue;
     try {
+      // v2 CLI: [{rec_texts: [...]}, ...]
       const arr = JSON.parse(s);
       if (Array.isArray(arr)) {
         for (const item of arr) {
           if (Array.isArray(item?.rec_texts)) lines.push(item.rec_texts.join(' '));
         }
+        continue;
+      }
+      // v3 Python API: {page, texts: [...]}
+      if (Array.isArray(arr?.texts)) {
+        for (const t of arr.texts) lines.push(t);
       }
     } catch { /* 忽略非 JSON 行 */ }
   }
