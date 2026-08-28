@@ -30,7 +30,7 @@ init 阶段会保证 `<vaultRoot>/scripts/` 存在（见 `llm-wiki-plugin-init` 
 | 类型 | 依赖 | 缺失行为 |
 |---|---|---|
 | `.pptx` / `.xlsx` | `libreoffice` | **skill 中止**,要求 `apt install libreoffice` / `brew install --cask libreoffice` |
-| `.docx` | `pandoc`(优先) / `libreoffice`(fallback) | pandoc 缺失自动降级到 libreoffice;两者皆无则中止 |
+| `.docx` | `libreoffice` | libreoffice 缺失则中止;`apt install libreoffice` / `brew install --cask libreoffice` |
 | `.png` / `.jpg` / `.jpeg` | `paddleocr`(Python API,**3.x**) | **仅跳过图片**,其他类型继续;`pip install paddleocr paddlepaddle`;**首次运行 PaddleOCR 会下载 ~1GB 模型到 `~/.paddlex/`,需 3–5 分钟冷启动**(脚本内置 300s timeout) |
 
 skill 启动时跑:
@@ -50,7 +50,7 @@ node scripts/convert-office.mjs --input=/dev/null --output=/dev/null --type=pptx
 | `Inbox/**/*.{pdf,PDF}` | PDF(递归) | `mv` 到 `01_知识库/<主题目录>/` | 调 `sync-pdf-notes.mjs --overwrite=false` 自动生成 |
 | `Inbox/web_clipper/*.md` | Markdown(web 剪藏,`tags: [clippings]`) | `mv` 到 `01_知识库/<主题目录>/` | **手工复制 `00_模板/读书笔记模板.md` 到 `02_读书笔记/`**(详见步骤 4') |
 | `Inbox/**/*.{pptx,PPT}` | PowerPoint(递归) | `mv` 到 `01_知识库/<主题目录>/` | **手工复制 `00_模板/读书笔记模板.md` 到 `02_读书笔记/`**(详见步骤 4''),先调 `convert-office.mjs` 预转 md |
-| `Inbox/**/*.{docx,DOC}` | Word(递归) | `mv` 到 `01_知识库/<主题目录>/` | 同 pptx(pandoc 优先,libreoffice fallback) |
+| `Inbox/**/*.{docx,DOC}` | Word(递归) | `mv` 到 `01_知识库/<主题目录>/` | 同 pptx(LibreOffice) |
 | `Inbox/**/*.{xlsx,XLS}` | Excel(递归) | `mv` 到 `01_知识库/<主题目录>/` | 同 pptx(转 CSV 再拼 md 表格) |
 | `Inbox/**/*.{png,jpg,jpeg,PNG,JPG}` | 图片(递归) | `mv` 到 `01_知识库/<主题目录>/` | **手工复制模板**(详见步骤 4''),先调 `convert-office.mjs` PaddleOCR |
 

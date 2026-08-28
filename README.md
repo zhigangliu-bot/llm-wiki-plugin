@@ -29,8 +29,7 @@ Obsidian 知识库的 5 个 Claude Code skill 包。
 | **[@tobilu/qmd](https://www.npmjs.com/package/@tobilu/qmd)** | ⚙️ | `llm-wiki-query` 的混合 BM25+向量+LLM 重排搜索引擎;未装时自动降级为 `Grep + Read`,小 vault 也够用 | 大 vault(笔记 > 500 篇) 或需要语义搜索时 |
 | **Templater plugin** | ⚙️ | Obsidian 端用 Templater 一键新建 `02_读书笔记/` 笔记;纯手动也行 | 想用快捷键新建笔记时 |
 | **Obsidian Web Clipper** | ⚙️ | 浏览器一键把网页存为 md 到 `Inbox/web_clipper/`,供 `obsidian-collacting` skill 批量归档 | 想自动收网页笔记时 |
-| **libreoffice** | ⚙️ | `obsidian-collacting` 预转 pptx / xlsx / docx(fallback);`apt install libreoffice` / `brew install --cask libreoffice` | Inbox 里有 pptx/docx/xlsx 文件时 |
-| **pandoc** | ⚙️ | `obsidian-collacting` 预转 docx(优先于 libreoffice,中文排版更准);缺失时 docx 自动降级到 libreoffice | 想用 pandoc 转 docx 时 |
+| **libreoffice** | ⚙️ | `obsidian-collacting` 预转 pptx / docx / xlsx(统一走 LibreOffice);`apt install libreoffice` / `brew install --cask libreoffice` | Inbox 里有 pptx/docx/xlsx 文件时 |
 | **paddleocr** | ⚙️ | `obsidian-collacting` 预转 png/jpg/jpeg 图片 OCR(中文识别优于 tesseract);`pip install paddleocr paddlepaddle`;缺失时图片文件跳过,其他类型继续;**首次运行 PaddleOCR 会加载 ~1GB 模型到 `C:\Users\<u>\.paddlex\`,需 3–5 分钟冷启动** | Inbox 里有图片文件时 |
 
 ### 快速安装（Windows / macOS / Linux）

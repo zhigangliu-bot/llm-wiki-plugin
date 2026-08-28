@@ -188,17 +188,9 @@ export async function convertViaLibreoffice(input, output, format) {
   return { ok: true, body, pageCount: countSlides(body) };
 }
 
-export async function convertDocxWithPandocFallback(input, output) {
-  const whichP = await runCommand('which', ['pandoc'], 5_000);
-  if (whichP.code === 0) {
-    const r = await runCommand('pandoc', ['-f', 'docx', '-t', 'markdown', '-o', output, input], 60_000);
-    if (r.code === 0) {
-      const fs = await import('node:fs/promises');
-      const body = await fs.readFile(output, 'utf8');
-      return { ok: true, body, pageCount: 0 };
-    }
-  }
-  // fallback libreoffice
+// docx 走 libreoffice(pandoc 路径已移除——用户机器只装 libreoffice 就够,
+// pptx/docx/xlsx 三类同一条路径,运维更简单)
+export async function convertDocx(input, output) {
   return convertViaLibreoffice(input, output, 'md');
 }
 
@@ -348,7 +340,7 @@ export async function main() {
   if (args.type === 'pptx') {
     result = await convertViaLibreoffice(args.input, args.output, 'md');
   } else if (args.type === 'docx') {
-    result = await convertDocxWithPandocFallback(args.input, args.output);
+    result = await convertDocx(args.input, args.output);
   } else if (args.type === 'xlsx') {
     result = await convertXlsxMultiSheet(args.input, args.output);
   } else {
