@@ -5,3 +5,4 @@ temp/
 .env
 .env.local
 .mcp.json
+.venv-ocr/

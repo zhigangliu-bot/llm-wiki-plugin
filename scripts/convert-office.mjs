@@ -106,7 +106,7 @@ export async function findPythonWithPaddleocr() {
       } catch { /* 不存在 */ }
     }
     // 同时看 cwd 的 parent 下所有 sibling 目录(用户可能把 venv 放在平级目录,
-    // 如 F:\myself-marketplace\.venv-ocr 与 F:\llm-wiki-plugin 平级)
+    // 如 .venv-ocr 与 plugin 仓平级)
     const parent = path.dirname(dir);
     try {
       const sibs = await fs.readdir(parent);
