@@ -153,7 +153,10 @@ export function runCommand(cmd, args, timeoutMs = 60_000) {
     let stdout = '';
     let stderr = '';
     let killed = false;
-    const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    // Windows Node 18+ 安全策略:spawn .cmd/.bat 必须显式 shell:true,否则 EINVAL
+    // (我们 args 都是脚本自拼的,不需要 shell escape 保护)
+    const useShell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(cmd);
+    const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], shell: useShell });
     const timer = setTimeout(() => {
       killed = true;
       child.kill('SIGKILL');
@@ -171,54 +174,61 @@ export function runCommand(cmd, args, timeoutMs = 60_000) {
   });
 }
 
-export async function convertViaLibreoffice(input, output, format) {
-  const tmpdir = dirname(output);
-  const args = ['--headless', '--convert-to', format, '--outdir', tmpdir, input];
-  const which = await runCommand('which', ['libreoffice'], 5_000);
-  if (which.code !== 0) {
-    return { ok: false, error: 'tool_missing', stderr: 'libreoffice not in PATH', code: 2 };
+// 探测 anydoc 是否可用(npm 包 @firecrawl/anydoc,Rust 写的本地转换器)
+// 优先用全局命令 'anydoc'(npm i -g @firecrawl/anydoc),
+// 没装时退化为 'npx -y' 临时拉(Windows 上 spawn('npx') 在 node 里会 ENOENT,
+// 因为 npx 是 .cmd 脚本,要用 npx.cmd 或 shell:true)
+async function whichAnydoc() {
+  const which = await runCommand('where', ['anydoc'], 5_000);
+  if (which.code === 0) {
+    const path = which.stdout.split(/\r?\n/).map((s) => s.trim()).find((s) => s.endsWith('anydoc.cmd') || s.endsWith('anydoc') || s.endsWith('anydoc.exe'));
+    if (path) return { cmd: path, prefix: [], viaNpx: false };
   }
-  const r = await runCommand('libreoffice', args, 60_000);
-  if (r.code !== 0) return { ok: false, error: 'convert_failed', stderr: r.stderr, code: 1 };
-  const basename = input.replace(/\\/g, '/').split('/').pop().replace(/\.[^.]+$/, '');
-  const generated = `${tmpdir}/${basename}.${format}`;
-  const fs = await import('node:fs/promises');
-  const body = await fs.readFile(generated, 'utf8');
-  await fs.unlink(generated).catch(() => {});
-  return { ok: true, body, pageCount: countSlides(body) };
+  return { cmd: 'npx.cmd', prefix: ['-y', '@firecrawl/anydoc'], viaNpx: true };
 }
 
-// docx 走 libreoffice(pandoc 路径已移除——用户机器只装 libreoffice 就够,
-// pptx/docx/xlsx 三类同一条路径,运维更简单)
+// anydoc 调用:Rust 写的本地转换器,一个 CLI 接 pptx/docx/xlsx/pdf/odt/... 全部转 md
+// stdout 写 markdown,stderr 写诊断,exit 3 表示 PDF 需要 OCR
+// 注意 Windows + .cmd + shell:true 时,args 不会被自动 quote;含空格的路径
+// (如 "JMC CX835.pptx") 必须手动用双引号包裹,否则 anydoc 看到多个 input。
+export async function convertViaAnydoc(input, output, opts = {}) {
+  const { cmd, prefix, viaNpx } = await whichAnydoc();
+  const useShell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(cmd);
+  // shell 模式:把含空格的 token 用双引号包,其他 token 不动
+  const argsRaw = [...prefix, input, '-o', output];
+  if (opts.format) argsRaw.push('--format', opts.format);
+  const args = useShell ? argsRaw.map((a) => /\s/.test(a) ? `"${a}"` : a) : argsRaw;
+  const r = await runCommand(cmd, args, 60_000);
+  if (r.code === 0) {
+    const fs = await import('node:fs/promises');
+    const body = await fs.readFile(output, 'utf8');
+    return { ok: true, body, pageCount: countSlides(body) };
+  }
+  if (r.code === 3) return { ok: false, error: 'ocr_required', stderr: r.stderr || 'PDF 需要 OCR', code: 3 };
+  if (!viaNpx && (r.code === 127 || /not found/i.test(r.stderr))) {
+    // 全局 anydoc 不在,fallback 到 npx
+    return convertViaAnydoc(input, output, opts);
+  }
+  return { ok: false, error: 'convert_failed', stderr: r.stderr || r.stdout, code: r.code };
+}
+
+// pptx 走 anydoc(原 libreoffice 路径已移除,统一走 anydoc)
+export async function convertPptx(input, output) {
+  return convertViaAnydoc(input, output, { format: 'pptx' });
+}
+
+// docx 走 anydoc
 export async function convertDocx(input, output) {
-  return convertViaLibreoffice(input, output, 'md');
+  return convertViaAnydoc(input, output, { format: 'docx' });
+}
+
+// xlsx 走 anydoc(markdown 表格输出,自带 sheet 分段,不用我们自己拼)
+export async function convertXlsxMultiSheet(input, output) {
+  return convertViaAnydoc(input, output, { format: 'xlsx' });
 }
 
 export function countSlides(mdBody) {
   return (mdBody.match(/<!--\s*第\s*\d+\s*段\s*-->/g) || []).length;
-}
-
-export async function convertXlsxMultiSheet(input, output) {
-  const which = await runCommand('which', ['libreoffice'], 5_000);
-  if (which.code !== 0) {
-    return { ok: false, error: 'tool_missing', stderr: 'libreoffice not in PATH (xlsx needs it)', code: 2 };
-  }
-  const tmpdir = dirname(output) + '/_xlsx_' + Date.now();
-  await mkdir(tmpdir, { recursive: true });
-  const args = ['--headless', '--convert-to', 'csv', '--outdir', tmpdir, input];
-  const r = await runCommand('libreoffice', args, 60_000);
-  if (r.code !== 0) return { ok: false, error: 'convert_failed', stderr: r.stderr, code: 1 };
-  const fs = await import('node:fs/promises');
-  const files = await fs.readdir(tmpdir);
-  const csvFiles = files.filter((f) => f.endsWith('.csv')).sort();
-  const sections = [];
-  for (const f of csvFiles) {
-    const csv = await fs.readFile(`${tmpdir}/${f}`, 'utf8');
-    sections.push(`<!-- 第 ${sections.length + 1} 段 (sheet: ${f.replace(/\.csv$/, '')}) -->\n\n` + csvToMdTable(csv));
-  }
-  await fs.rm(tmpdir, { recursive: true, force: true });
-  const body = sections.join('\n\n');
-  return { ok: true, body, pageCount: sections.length };
 }
 
 export function csvToMdTable(csv) {
@@ -338,7 +348,7 @@ export async function main() {
   await mkdir(dirname(args.output), { recursive: true });
   let result;
   if (args.type === 'pptx') {
-    result = await convertViaLibreoffice(args.input, args.output, 'md');
+    result = await convertPptx(args.input, args.output);
   } else if (args.type === 'docx') {
     result = await convertDocx(args.input, args.output);
   } else if (args.type === 'xlsx') {
