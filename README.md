@@ -30,7 +30,7 @@ Obsidian 知识库的 5 个 Claude Code skill 包。
 | **Templater plugin** | ⚙️ | Obsidian 端用 Templater 一键新建 `02_读书笔记/` 笔记;纯手动也行 | 想用快捷键新建笔记时 |
 | **Obsidian Web Clipper** | ⚙️ | 浏览器一键把网页存为 md 到 `Inbox/web_clipper/`,供 `obsidian-collacting` skill 批量归档 | 想自动收网页笔记时 |
 | **[@firecrawl/anydoc](https://github.com/firecrawl/anydoc)** | ⚙️ | `obsidian-collacting` 预转 pptx / docx / xlsx(Rust 写的本地转换器,GFM 风格);`npm i -g @firecrawl/anydoc` 或 `npx -y @firecrawl/anydoc`(脚本自动 fallback);**纯本地,无需 API key** | Inbox 里有 pptx/docx/xlsx 文件时 |
-| **paddleocr** | ⚙️ | `obsidian-collacting` 预转 png/jpg/jpeg 图片 OCR(中文识别优于 tesseract);`pip install paddleocr paddlepaddle`;缺失时图片文件跳过,其他类型继续;**首次运行 PaddleOCR 会加载 ~1GB 模型到 `C:\Users\<u>\.paddlex\`,需 3–5 分钟冷启动** | Inbox 里有图片文件时 |
+| **paddleocr** | ⚙️ | `obsidian-collacting` 预转 png/jpg/jpeg 图片 OCR(中文识别优于 tesseract);**推荐用 uv 装到 `~/.venv-ocr/`**:`uv venv ~/.venv-ocr && source ~/.venv-ocr/bin/activate && uv pip install paddleocr paddlepaddle`(Windows PowerShell 把 `source` 换成 `.\.venv-ocr\Scripts\Activate.ps1`);plugin 会从 `~/.venv-ocr/`、cwd 向上 5 层、cwd 平级 sibling 目录、PATH 顺序自动探测 `python.exe` + `import paddleocr` 成功的那一个;缺失时图片文件跳过,其他类型继续;**首次运行 PaddleOCR 会加载 ~1GB 模型到 `C:\Users\<u>\.paddlex\`,需 3–5 分钟冷启动** | Inbox 里有图片文件时 |
 
 ### 快速安装（Windows / macOS / Linux）
 
@@ -46,6 +46,13 @@ nvm install 22 && nvm use 22
 
 # 5. (可选) qmd — 装好后见下文"qmd 接入"
 npm i -g @tobilu/qmd
+
+# 6. (可选) paddleocr — `obsidian-collacting` 处理 Inbox 图片时需要
+#    推荐用 uv 装到 ~/.venv-ocr/(plugin 会自动探测到):
+uv venv ~/.venv-ocr
+source ~/.venv-ocr/bin/activate && uv pip install paddleocr paddlepaddle
+# Windows PowerShell: 把 source 换成 .\.venv-ocr\Scripts\Activate.ps1
+# 没装的话图片文件跳过,其他格式(pdf/pptx/docx/xlsx)照常工作
 ```
 
 ### 校验清单
