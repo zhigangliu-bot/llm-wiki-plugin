@@ -167,7 +167,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com> 由 Claude 自动追加�
 | `skills/obsidian-collacting/SKILL.md` | 高 | 本仓 `00_模板/标签词表.md` §1-§5 |
 | `skills/lint-wiki/SKILL.md` | 中 | `00_模板/标签词表.md` + `scripts/lint-wiki.mjs` 头注释 |
 | `skills/knowledge-graph-sync/SKILL.md` | 低 | `10_schema/config.md` |
-| `skills/llm-wiki-query/SKILL.md` | 中 | `10_schema/config.md §1` + `00_模板/Log_Spec.md §3.4` + `00_模板/CLAUDE_Template.md` 铁律 #2（检索优先级） |
+| `skills/llm-wiki-query/SKILL.md` | 中 | `10_schema/config.md §1` + `00_模板/Log_Spec.md §3.4` + `00_模板/CLAUDE_Template.md` 铁律 #2（检索优先级）。**设计依据**：[reference/llm-wiki.md](reference/llm-wiki.md) L51-L53 "Optional: CLI tools"——karpathy 明确说「at small scale the index file is enough，as the wiki grows you want proper search」，朴素 Grep 是起步姿势，qmd 是 wiki 长大的升级选项 |
 | `skills/llm-wiki-plugin-init/SKILL.md` | 低 | `scripts/init-vault.mjs` |
 | `scripts/*.mjs` | 中 | 顶部 JSDoc 契约 + 对应 `.test.mjs` |
 | `00_模板/标签词表.md` | 中 | 一旦改 → 触发 Log.md append（`10_schema/config.md` §3） |
