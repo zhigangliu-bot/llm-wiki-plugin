@@ -202,7 +202,7 @@ tags:
   - domain/<axis1-value>
   - layer/<axis2-value>
 状态: false
-召回方式: "Grep"
+召回方式: "Grep"  # 或 "qmd" (按 §v3 路径选择 自动)
 ---
 
 ## 问题
@@ -236,7 +236,7 @@ tags:
 - `回答日期:` YYYY-MM-DD
 - `tags:` 4 轴，规则同 source 笔记（限 §2 枚举）
 - `状态:` checkbox 字段，bare boolean（不带引号）——与 source 同义，`false` = 待审
-- `召回方式:` 记录本次 llm-wiki-query 用的召回路径——固定 `Grep`（未来若引入新召回路径再扩枚举）
+- `召回方式:` 记录本次 llm-wiki-query 用的召回路径——`Grep` / `qmd`(v3 起由 SessionStart hook 注入 effective_path 决定;参考 末尾 §"v3 路径选择")
 
 **正文 4 段**：问题 / 回答（含 `### 引用来源` 子段，必填）/ 相关实体 / 相关概念
 
@@ -256,7 +256,7 @@ tags:
 - **触发**：用户明示「<原话>」
 - **答案路径**：`[[03_问答区/<主题>/<slug>.md]]`
 - **归档触发**：Q1 / Q2 / Q3 / Q4 / Q5 命中（命中哪几条列哪几条）
-- **召回方式**：`Grep`
+- **召回方式**：``Grep`` 或 ``qmd``(按 §v3 路径选择 自动)
 - **commit**：`<hash>` 新增 QA 笔记
 - **lint 验收**：未跑
 ```
