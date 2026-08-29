@@ -91,7 +91,7 @@ git pull --ff-only
 | `knowledge-graph-sync` | knowledge graph / 同步反向引用 / 知识图谱同步 | 手动触发；只补存量 `02_读书笔记/` 的反向引用 `## Related Pages`，不读 PDF、不写正文 |
 | `lint-wiki` | lint / healthcheck / 检查 vault / 扫一遍笔记 / 跑 lint | 只读不写；扫 source/entity/concept 14 类健康问题到 `scripts/_lint-report.md` |
 | `obsidian-collacting` | 整理 / Inbox / web clipper / office / ppt / word / excel / 图片 | `Inbox/` 6 源（pdf / web_clipper md / pptx / docx / xlsx / png-jpg）→ 归档到 `01_知识库/` → 生成 `02_读书笔记/` 模板 → 写正文 → 抽 entity/concept；office 走 anydoc / 图片走 PaddleOCR（`scripts/convert-office.mjs` 预转 md）|
-| `llm-wiki-query` | 在知识库查一下 / 查一下知识库 / 知识库查一下 / 在 wiki 查一下 | 显式触发；朴素 Grep（按 vault 优先级 `02_读书笔记/ > 11_entities/ > 12_concepts/ > 01_知识库/ > 03_问答区/(可选)`）召回 + 引用合成答案；用户确认「归档」后写到 `03_问答区/` |
+| `llm-wiki-query` | 在知识库查一下 / 查一下知识库 / 知识库查一下 / 在 wiki 查一下 | 显式触发；朴素 Grep 或 qmd（按 vault 大小自动选, 详见下文）召回（按 vault 优先级 `02_读书笔记/ > 11_entities/ > 12_concepts/ > 01_知识库/ > 03_问答区/(可选)`）+ 引用合成答案；用户确认「归档」后写到 `03_问答区/` |
 
 ## 内含资产
 
@@ -155,7 +155,7 @@ node --test scripts/convert-office.test.mjs      # 11 cases
 
 ## 关于 `llm-wiki-query` 的召回路径（v3 自动选择）
 
-`llm-wiki-query` skill **自动**根据 vault 大小选择朴素 Grep 或 qmd MCP 召回。SessionStart 时跑 [`scripts/qmd-detect.mjs`](../scripts/qmd-detect.mjs)，结果注入 LLM context 一段 `<system-context>`，LLM 按 `effective_path` 调对应工具。
+`llm-wiki-query` skill **自动**根据 vault 大小选择朴素 Grep 或 qmd MCP 召回。SessionStart 时跑 [`scripts/qmd-detect.mjs`](scripts/qmd-detect.mjs)，结果注入 LLM context 一段 `<system-context>`，LLM 按 `effective_path` 调对应工具。
 
 **三档：**
 
@@ -165,18 +165,22 @@ node --test scripts/convert-office.test.mjs      # 11 cases
 | `500-3000` | qmd 装了 → qmd；没装 → 朴素 Grep + 首次引导装 |
 | `>= 3000` | qmd 装了 → qmd；没装 → 朴素 Grep + 每次强提示 |
 
-**为什么用 v3 自动选择而不是纯 grep：** 朴素 Grep 在小 vault 完美够用，但 vault 长到 1500+ 后召回噪声大。v3 把路径决策交给 Node 脚本，LLM 按指令执行——比 v2 的「LLM 自检 vault 大小」更可文档化、更可测试。
+**为什么用 v3 自动选择而不是纯 grep：** 朴素 Grep 在小 vault 完美够用，但 vault 笔记规模上来后 (medium 档起) 召回噪声大。v3 把路径决策交给 Node 脚本，LLM 按指令执行——比 v2 的「LLM 自检 vault 大小」更可文档化、更可测试。
 
-**vault 用户 override：** 写 vault root `.llm-wiki-query-state.json`：
+**vault 用户 override：** 写 vault root `.llm-wiki-query-state.json`，下面是字段含义（JSON 注释放外面，因 `//` 非法 JSON）：
 
 ```json
 {
-  "path_override": "grep",   // 或 "qmd" / "auto"
+  "path_override": "grep",
   "引导_skipped_at": "2026-08-29T10:00:00Z"
 }
 ```
 
-**设计依据：** karpathy LLM Wiki 原文 `reference/llm-wiki.md` §"Optional: CLI tools"——「at small scale the index file is enough, but as the wiki grows you want proper search」。v3 完整 spec 见 [docs/superpowers/specs/spec-query.md](../superpowers/specs/spec-query.md)。
+- `"grep"` —— 永远走朴素 Grep, vault ≥ 3000 时用于一次性解封强提示
+- `"qmd"` —— 永远走 qmd, 若未装 LLM 主对话遇 `mcp__qmd__query` tool-not-found 时降级到 Grep + 强提示
+- `"auto"` / 缺省 —— 按上面表格自动决策
+
+**设计依据：** karpathy LLM Wiki 原文 `reference/llm-wiki.md` §"Optional: CLI tools"——「at small scale the index file is enough, but as the wiki grows you want proper search」。v3 完整 spec 见 [docs/superpowers/specs/spec-query.md](docs/superpowers/specs/spec-query.md)。
 
 **关于 qmd 的安装：** 见 [github.com/tobi/qmd](https://github.com/tobi/qmd)（npm: `@tobilu/qmd`）。vault 用户手动 `npm i -g @tobilu/qmd` 后下次 SessionStart 自动切到 qmd 路径。
 
