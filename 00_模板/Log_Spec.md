@@ -64,7 +64,7 @@
 - `触发`
 - `答案路径`：`` `03_问答区/<主题>/<slug>.md` ``
 - `归档触发`：列出 Q1 / Q2 / Q3 / Q4 / Q5 命中项（如 Q1 + Q5）
-- `召回方式`：`Grep`（必填；当前 llm-wiki-query 仅走朴素 Grep 路径，未来若引入新召回路径再扩枚举）
+- `召回方式`：`Grep` / `qmd`（必填；v3 起 llm-wiki-query 由 SessionStart hook 注入 system context 决定走哪条路径, 本字段记录本次实际用的路径）
 - `commit`
 
 ---
