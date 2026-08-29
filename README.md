@@ -135,7 +135,7 @@ node --test scripts/convert-office.test.mjs      # 11 cases
 
 ## 源 vault
 
-源 vault 路径（开发参考）：`F:\zhigangliu_lib\mynotes`
+源 vault 路径（开发参考）：`<开发参考路径>`（按本机实际填；为开发参考，本仓不依赖）
 
 ## Skill: `llm-wiki-plugin-init`（新增 v0.1）
 
