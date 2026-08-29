@@ -249,29 +249,48 @@ tags:
 - ✅ **必须**每条事实带 `[[wiki 链接]]`
 - ✅ **必须**先输出答案给用户，再等用户是否要归档——不颠倒顺序
 
-# Optional: 何时考虑接入 qmd
+# Optional: 何时用朴素 grep，何时考虑 qmd
 
-本 skill 当前**唯一召回路径是朴素 Grep + Read**（阶段 B）。[`qmd`](https://github.com/tobi/qmd)（npm 包名 `@tobilu/qmd`）是 markdown 文件的本地混合检索（BM25 + 向量 + LLM rerank），是本 skill 的**升级选项**，不是必须项。设计依据参考本仓 `reference/llm-wiki.md`（karpathy LLM Wiki 原文）§"Optional: CLI tools"——「at small scale the index file is enough, but as the wiki grows you want proper search」。
+本 skill 当前**唯一召回路径是朴素 Grep + Read**（阶段 B）。[`qmd`](https://github.com/tobi/qmd)（npm 包名 `@tobilu/qmd`）是 markdown 文件的本地混合检索（BM25 + 向量 + LLM rerank），是本 skill 的可选升级——但**即便装上，本 skill 也不会自动切过去**，见末尾「装好后也不自动用」。
 
-## 满足以下任一条件时考虑接入
+设计依据参考本仓 `reference/llm-wiki.md`（karpathy LLM Wiki 原文）§"Optional: CLI tools"——「at small scale the index file is enough, but as the wiki grows you want proper search」。
+
+## 决策表（vault 用户当前用 grep；满足「上 qmd」一节条件时才考虑切）
+
+| vault 规模 / 查询类型 | 当前用 | 何时该考虑 qmd | 为什么 |
+| --- | --- | --- | --- |
+| < 500 篇 + 精确名词查询（"X 包含哪几块"、"A 的标准号"） | 朴素 grep | 不必 | 召回精准、零依赖 |
+| < 500 篇 + 语义追问（"为什么 X 这样设计"、"A 和 B 的取舍"） | 朴素 grep（拆 anchor） | 不必 | 量级未到 BM25 / 向量的盈亏平衡点 |
+| > 500 篇 + 精确名词查询 | 朴素 grep（多 anchor + 按目录优先级） | **可考虑** | 朴素 grep 性能足够；qmd 不显著提升 |
+| > 500 篇 + 语义追问，或大量未加工 PDF 转 md | 朴素 grep（短期）→ qmd（当长期） | **强烈推荐** | 只有 BM25 + 向量 + rerank 才能稳住 top-3 |
+
+**默认结论：** **朴素 grep 是当前 vault 用户唯一召回路径**。vault 长到「上 qmd」一节条件时再考虑。
+
+## 满足以下任一条件时上 qmd
 
 - vault 笔记数 **> 500 篇**——`grep -l "<anchor>" <vault>/` 召回 ≥ 20 篇但 top-3 不准，召回噪声大
-- 问题多为**语义追问**（"为什么 X 这么设计"、"X 和 Y 的取舍"），anchor 难拆分成精确名词短语
+- 查询多为**语义追问**（anchor 难拆分成精确名词短语）
 - 有大量 `01_知识库/` 未亲自加工的 PDF 转 md 内容——事实密度低、朴素 grep 噪声大
+- 朴素 grep 跑下来 LLM 频繁答「仓库无相关笔记」但**你知道应该有**
 
 ## 不满足任一条件时不要装
 
-朴素 Grep 已够用。装 qmd 的代价：首次 `qmd embed` 对大 vault 耗时数分钟；下载 rerank 模型（约 1 GB 到 `~/.paddlex/` 类的本地缓存）；多一个 MCP 失败处理面要写。
+朴素 grep 没这些负担：
 
-## 本期不实现 qmd 接入
+- **首次 `qmd embed`** 对大 vault 耗时数分钟（建索引）
+- **下载 rerank 模型** 约 1 GB 到本地缓存
+- **多一个 MCP 失败处理面** 要写在 skill / 调用代码里
+- **维护两份索引**：vault 增删笔记后要同步 `qmd embed` 重跑
 
-`llm-wiki-query` 当前 SKILL.md 行为以朴素 Grep 为准，**不**感知 qmd 是否已装。**不**自动切换——让 skill 行为可预测、可文档化。
+## 装好后也不自动用（本 skill 行为不变）
 
-**Future work**（新独立 skill 而非开关）：等用户 vault 长到上述阈值，新增一个 `qmd-recall` 之类独立 skill 走 qmd MCP 路径，本 skill 保持纯净，本 skill 不加「如果装了 qmd 就……」 的分支判断。本期 YAGNI。
+本 skill 的阶段 B 行为以朴素 grep 为准，**不**感知 qmd 是否已装。LLM 看到 `mcp__qmd__query` / `mcp__qmd__get` 工具已就绪时不会自动切过去——保持 skill 行为可预测、可文档化。
 
-## 若已装 qmd，本 skill 行为不变
+混用两条召回路径会让 Q1-Q5 自检与答案引用难以稳定，本期不引入该复杂度。
 
-LLM 看到 `mcp__qmd__query` / `mcp__qmd__get` 工具已就绪时，可以直接调起，但**本 SKILL.md 不强制**——LLM 仍按阶段 B 跑朴素 Grep 路径。混用两条路径会让 Q1-Q5 自检与答案引用难以稳定。
+## 未来升级路径（独立 skill，非开关）
+
+等 vault 长到「上 qmd」条件时，新增一个 `qmd-recall` 之类**独立 skill**走 qmd MCP 路径，本 skill 保持纯净。本期 YAGNI——本 skill 不加「如果装了 qmd 就……」的分支判断。
 
 # 关联资产
 
