@@ -7,17 +7,13 @@
  *
  * 失败兜底: 任何异常 → stdout safe fallback JSON + exit 0 (不阻断 session)
  *
- * 架构: 依赖注入 (DI). 所有外部依赖 (fs 读 config, child_process 探 qmd,
- *       时间获取) 都通过 opts 注入, 默认值接真实实现.
+ * 架构: 依赖注入 (DI). Task 2 仅 `readStateFile` 暴露 readFile seam;
+ *       Task 3 扩展到全部外部依赖 (exec / mtime / listMd / nowMs).
  *       测试时传 mock, 绕开 Node 22 内置模块 namespace 冻结问题.
  */
 
 import { readFile } from 'node:fs/promises';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { join } from 'node:path';
-
-const execFileP = promisify(execFile);
 
 /** vault 大小阈值. 改时单文件改. */
 export const THRESHOLDS = { small: 500, large: 3000 };
@@ -50,8 +46,10 @@ export function computeTier(vaultSize) {
  * @returns {'grep' | 'qmd'}
  */
 export function computeEffectivePath(state, tier, qmdAvailable) {
-  if (state.path_override === 'grep') return 'grep';
-  if (state.path_override === 'qmd') return 'qmd';
+  // state 应当是对象; 非对象防御性 fallback 到 'small' 行为
+  const s = (state && typeof state === 'object') ? state : {};
+  if (s.path_override === 'grep') return 'grep';
+  if (s.path_override === 'qmd') return 'qmd';
   // override 非法/缺省 → 按 tier+available 决策
   if (tier === 'small') return 'grep';
   return qmdAvailable ? 'qmd' : 'grep';
@@ -76,6 +74,7 @@ export function filterMdFiles(paths) {
  * @param {boolean} opts.qmdAvailable
  * @param {string|null} opts.stateSkippedAt - state.引导_skipped_at; null = 缺省/未引导
  * @param {string|null} opts.override - state.path_override; null = auto
+ * @returns {{ shouldSuggest: boolean, shouldWarn: boolean }}
  */
 export function computeSuggestionFlags({ tier, qmdAvailable, stateSkippedAt, override }) {
   const shouldSuggest =
@@ -84,11 +83,24 @@ export function computeSuggestionFlags({ tier, qmdAvailable, stateSkippedAt, ove
     !stateSkippedAt &&
     override !== 'grep';
   const shouldWarn =
-    tier === 'large' && !qmdAvailable && override !== 'grep';
+    tier === 'large' && !qmdAvailable && override !== 'grep' && override !== 'qmd';
   return { shouldSuggest, shouldWarn };
 }
 
-/** 安全降级 JSON: hook 失败时永远输出这个. */
+/**
+ * 安全降级 JSON: hook 失败时永远输出这个.
+ * @returns {{
+ *   tier: 'small',
+ *   effective_path: 'grep',
+ *   qmd_available: false,
+ *   vault_size: number,
+ *   cache_age_seconds: number,
+ *   vault_mtime_iso: string,
+ *   state_override: null,
+ *   should_suggest_qmd_install: false,
+ *   should_warn_grep_unstable: false
+ * }}
+ */
 export function safeFallback() {
   return {
     tier: 'small',
