@@ -66,13 +66,13 @@ plugin 自身是分层交付物,和 karpathy 原文的「原始素材 / wiki / s
 │   关键文件:                                                         │
 │     - skills/<name>/SKILL.md       5 份,LLM 流程编排                   │
 │     - scripts/*.mjs                7 份,纯 IO(Node stdlib)            │
-│     - scripts/*.test.mjs           5 份,node:test 内置单测              │
+│     - scripts/*.test.mjs           6 份,node:test 内置单测 (lint-wiki / sync-pdf-notes / convert-office / check-update / init-vault / qmd-detect)│
 │     - 10_schema/config.md          vault 端 schema 唯一信息源             │
 │     - 00_模板/                     4 类 markdown 模板                  │
 │     - reference/llm-wiki.{md,zh.md} karpathy 原文 + 中文版             │
 │     - docs/superpowers/specs/      plugin 端 spec 文档                  │
-│     - .mcp.json                    qmd MCP server 声明(可选)           │
-│     - hooks/hooks.json             SessionStart 升级检查               │
+│     - .mcp.json                    qmd MCP server 声明(v3 起 plugin 不再依赖;见 spec-query.md)  │
+│     - hooks/hooks.json             SessionStart 2 matcher: check-update(升级) + qmd-detect(路径决策)  │
 └──────────────────────────────────────────────────────────────────────┘
                               ↓ init 阶段拷贝
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -107,7 +107,7 @@ plugin 自身是分层交付物,和 karpathy 原文的「原始素材 / wiki / s
 | **source** | `02_读书笔记/` | LLM(obsidian-collacting / kg-sync) | LLM + 人 | 原始素材的逻辑表示 |
 | **entity** | `11_entities/` | LLM,可被人 `reviewed: true` 锁 | LLM + 人 | 被多 source 引用的单点实体 |
 | **concept** | `12_concepts/` | LLM,可被人 `reviewed: true` 锁 | LLM + 人 | 跨 source 抽象的单点概念 |
-| **qa** | `03_问答区/` | LLM(llm-wiki-query) | LLM + 人 | 查询产物,只读型,不参与反向链接 |
+| **qa** | `03_问答区/` | LLM(llm-wiki-query) | LLM + 人 | 查询产物,只读型,不参与反向链接;v3 起 `召回方式` 字段记录本次实际走的路径(Grep / qmd) |
 | **template / schema** | `00_模板/` + `10_schema/` | 人工维护(偶尔) | LLM | schema + frontmatter 引号约定 |
 
 ### 3.2 模板层:5 个文件在 plugin 中的角色
@@ -214,7 +214,7 @@ karpathy 原文给 wiki 生命周期定义了三个动作:**Ingest / Query / Lin
 - **触发**:用户说「查 wiki」「问个问题」「query」「查 vault」「知识库里有没有 X」「我问个问题」
 - **做什么**:四阶段流程
   1. **A 触发判定**:必须显式含触发词
-  2. **B 查询阶段**:优先 qmd MCP `query`/`get`(混合 BM25/vec + reranking);qmd 未装自动降级 Grep+Read
+  2. **B 查询阶段**(v3 自动路径选择):SessionStart 时 `qmd-detect.mjs` 注入 system context(`tier` / `effective_path` / `qmd_available` / `should_suggest_qmd_install` / `should_warn_grep_unstable`);LLM 按 `effective_path` 调对应工具 — `grep` → 多 anchor Grep + Read;`qmd` → `mcp__qmd__query`/`get`(混合 BM25/vec + rerank);qmd tool-not-found 降级 Grep+Read 并 warning
   3. **C 归档判定**:LLM 自检 Q1-Q5 强信号(≥3 事实点 / 跨 ≥2 source / 含图表 / 追问 ≥2 轮 / 揭示新连接)
   4. **D 归档阶段**:满足 ≥1 → 全自动写 `03_问答区/<主题>/<slug>.md`;路径冲突走 `## 续答` 段追加
 - **不做什么**:不反向链接到 entity/concept 的 `sources:`(QA 是只读型);不为归档而捏造 Q 命中
@@ -243,7 +243,7 @@ karpathy 原文给 wiki 生命周期定义了三个动作:**Ingest / Query / Lin
 | **init** | — | 无依赖 | 无依赖 | 无依赖 | 无依赖 |
 | **obsidian-collacting** | 无依赖 | — | 互补(kg-sync 补存量) | 无依赖 | 周期体检 |
 | **kg-sync** | 无依赖 | 反向依赖(obsidian-collacting 跳过已 Related Pages 的) | — | 无依赖 | 周期体检 |
-| **query** | 间接(init 时建 `03_问答区/`) | **互斥**(不调) | **互斥**(不调) | — | 周期体检 |
+| **query** | 间接(init 时建 `03_问答区/`) | **互斥**(不调) | **互斥**(不调) | — | 周期体检 |(v3: 读 qmd-detect.mjs SessionStart 输出)
 | **lint** | 无依赖 | 只读 | 只读 | 只读 | — |
 
 **关键设计**:
@@ -278,15 +278,16 @@ obsidian-collacting 触发:
 几周后用户问:"vault 里有没有关于 Bar Pattern 的内容?"
        ↓
 llm-wiki-query 触发:
-  1. 调 qmd MCP query(vec: "Bar Pattern")
+  1. (SessionStart 时 qmd-detect.mjs 已注入 system context: tier=large, effective_path=qmd, qmd_available=true)
+  2. 调 mcp__qmd__query(vec: "Bar Pattern", limit=10)
      - 命中:12_concepts/bar-pattern.md(score 0.85)
-  2. 调 qmd MCP get(bar-pattern.md)取完整内容
-  3. LLM 用引用合成答案:
+  3. 对 score≥0.6 调 mcp__qmd__get(bar-pattern.md)取完整内容
+  4. LLM 用引用合成答案:
      - 「Bar Pattern 是 Foo Inc. 在 [[02_读书笔记/<主题>/foo]] 第 3 段提出的设计模式,核心是……」
-  4. 归档判定:命中 Q1(≥3 事实点)→ 走 D 归档
-  5. 写 03_问答区/<主题>/bar-pattern-explained.md(双 frontmatter + 4 段)
-  6. Index.md append 一条
-  7. Log.md 倒序追加一条(query 最小条目,含 召回方式: qmd-mcp)
+  5. 归档判定:命中 Q1(≥3 事实点)→ 走 D 归档
+  6. 写 03_问答区/<主题>/bar-pattern-explained.md(双 frontmatter + 4 段)
+  7. Index.md append 一条
+  8. Log.md 倒序追加一条(query 最小条目,含 召回方式: qmd)
        ↓
 下个月用户说"扫一遍 wiki"
        ↓
@@ -322,6 +323,7 @@ lint-wiki 触发:
 | `lint-wiki.mjs` | 扫 15 类问题 + 词表建议 | lint-wiki skill |
 | `log-append.mjs` | Log.md 倒序追加(CLI + 函数双入口) | 5 个 skill 收尾 |
 | `check-update.mjs` | SessionStart hook,git pull --ff-only | hooks/hooks.json |
+| `qmd-detect.mjs` | SessionStart hook,3 档 tier + effective_path + suggestion flags 决策 | hooks/hooks.json (v3 matcher) |
 | `migrate-quote-frontmatter.mjs` | frontmatter 引号迁移(一次性) | 手动 |
 
 ### 5.2 5 类 markdown 的 frontmatter 强约束
@@ -361,15 +363,18 @@ lint-wiki 触发:
 - 5 个 skill 各自收尾必须调,避免「用户没确认 Log 写入就丢记录」
 - 双入口(CLI + 函数内嵌):SKILL.md 调 CLI;`scripts/lint-wiki.mjs` 同进程内 `import` `appendLog()`
 
-### 5.5 qmd MCP 可选 + 降级
+### 5.5 v3 自动路径选择(SessionStart hook + 3 档 + state.json override)
 
-**决策**:query skill 优先调 qmd MCP server,失败自动降级到 Grep+Read。
+**决策**:query skill 的召回路径由 `scripts/qmd-detect.mjs` 在 SessionStart 时计算,LLM 仅读 system context 调对应工具;不再让 LLM 在阶段 B0 自检 vault 决定走 Grep 还是 qmd。
 
 **理由**:
 
-- plugin 仓零运行时依赖(不动 README 的「手动装」步骤)
-- qmd 未装 / 索引陈旧时,Grep+Read 在中等规模(~100 素材、~几百页)够用
-- SKILL.md 阶段 B0 试探调一次 `query`,失败才走 Grep
+- v2 时代「LLM 自检 vault + 自动判断」不可文档化、不可测试、行为依赖 LLM;v3 把决策逻辑下沉到 Node 脚本 → 行为可预测、单测可写、spec 可对账
+- 三档阈值(small<500 / medium 500-2999 / large≥3000)写在 `qmd-detect.mjs` 顶部 `THRESHOLDS` 常量,改时单文件
+- vault 用户可用 `vault/.llm-wiki-query-state.json` 的 `path_override` 强制锁定路径(grep / qmd / auto),vault >= 3000 时 `grep` 一行解封强提示
+- 失败全部降级到 Grep(safe path)+ warning + exit 0,SessionStart 不阻塞
+
+详见 [spec-query.md](spec-query.md)。
 
 ### 5.6 plugin 升级 + vault 解耦
 
@@ -401,7 +406,7 @@ lint-wiki 触发:
 ```
 f:\llm-wiki-plugin\
 ├── .claude-plugin/             # plugin manifest
-├── .mcp.json                   # qmd MCP server 声明(可选)
+├── .mcp.json                   # qmd MCP server 声明(v3 起 plugin 不再依赖)  
 ├── .gitignore
 ├── 00_模板/                    # 5 个模板文件,plugin 行为契约的「前置」约定
 │   ├── 读书笔记模板.md          # source 笔记空壳(5 字段 frontmatter + 4 段正文)
@@ -414,8 +419,8 @@ f:\llm-wiki-plugin\
 ├── Inbox/
 │   └── web_clipper/README.md  # 拷贝到 vault
 ├── hooks/
-│   └── hooks.json             # SessionStart → check-update.mjs
-├── scripts/                    # 7 个 .mjs + 5 个 .test.mjs
+│   └── hooks.json             # SessionStart → check-update.mjs + qmd-detect.mjs (v3)
+├── scripts/                    # 8 个 .mjs + 6 个 .test.mjs
 ├── skills/                     # 5 个 skill
 │   ├── llm-wiki-plugin-init/
 │   ├── obsidian-collacting/
