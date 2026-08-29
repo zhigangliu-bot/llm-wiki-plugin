@@ -37,7 +37,7 @@
 |---|---|
 | 持久化 wiki | vault 是一个标准 Obsidian vault(14 个目录 + 5 类 markdown),在用户机器上有完整副本,通过 git 受版本管理 |
 | schema 纪律化 | `10_schema/config.md` + `00_模板/标签词表.md` + `00_模板/读书笔记模板.md` 三件套作为 vault 端 Single Source of Truth;所有 skill / 脚本读这一份,不允许副本 |
-| 答案归档 | `llm-wiki-query` 触发 Q1-Q5 强信号判定 → 全自动写 `03_问答区/` + append `Index.md` + `Log.md` |
+| 答案归档 | `llm-wiki-query` 触发 Q1-Q5 强信号判定 → 全自动写 `03_问答区/` + `` `node scripts/sync-index.mjs --add <path> --write` `` 更新 Index.md + `Log.md` |
 
 ### 2.3 plugin 在原文基础上加了什么
 
@@ -87,7 +87,7 @@ plugin 自身是分层交付物,和 karpathy 原文的「原始素材 / wiki / s
 │     - 12_concepts/              concept 页(LLM 写,可 review 锁)       │
 │     - 00_模板/                  笔记模板 + 标签词表                     │
 │     - 10_schema/                wiki schema(vault 端 SoT)             │
-│     - scripts/                  init 时拷入的 4 个 CLI 脚本             │
+│     - scripts/                  init 时拷入的 5 个 CLI 脚本 (+v2 sync-index.mjs)            │
 │     - Index.md / Log.md         索引 + 操作流水                         │
 │     - CLAUDE.md                 用户自维护 + init 注入的 llm-wiki 段    │
 └──────────────────────────────────────────────────────────────────────┘
@@ -119,14 +119,14 @@ plugin 的 5 类 markdown 笔记不是「LLM 凭空造出来的」——它们�
 | [`00_模板/读书笔记模板.md`](../../00_模板/读书笔记模板.md) | source 笔记的**占位空壳** —— 含 5 字段 frontmatter + 4 段固定正文(摘要/重点摘录/我的思考/总结) | `sync-pdf-notes.mjs`(拷过去填占位)+ obsidian-collacting 阶段 2 sub agent(填充正文) | 人工偶改(改段名/加段要先升 schema) |
 | [`00_模板/标签词表.md`](../../00_模板/标签词表.md) | **标签体系 single source of truth** —— 4 轴(domain/layer/phase/maturity)枚举 + entity 子类 + concept 子类 + 三层 type×tags 互斥规则 | 全部 5 个 skill 的 sub agent 打标前必读;lint-wiki `tag-drift` 检查 | 人工维护(词表外新候选由 obsidian-collacting 在报告里汇总,用户显式确认后补入) |
 | [`00_模板/Log_Spec.md`](../../00_模板/Log_Spec.md) | **Log.md 写入唯一规范** —— §1 硬约束(不用 wiki 链接)+ §2 通用格式(倒序/H2 双空格/反引号路径)+ §3 4 skill 最小条目 | 5 个 skill(按 §2 格式在 SKILL.md 收尾步 append) | 人工偶改(加新 skill 最小条目) |
-| [`00_模板/Index_Spec.md`](../../00_模板/Index_Spec.md) | **Index.md 写入唯一规范** —— §2 路径硬约束(必须 wiki-link,禁止 markdown link / 反引号)+ §3 表格结构 + §5 触发时机白名单 | obsidian-collacting 阶段 3 + llm-wiki-query 阶段 D4 | 人工偶改 |
+| [`00_模板/Index_Spec.md`](../../00_模板/Index_Spec.md) | **Index.md v1 旧规范（已弃用,2026-08-29）** —— 仅作迁移说明存档；新规则见 [`docs/superpowers/specs/spec-index-v2.md`](spec-index-v2.md) | obsidian-collacting 阶段 9 + llm-wiki-query 阶段 D4(改调 `sync-index.mjs --all --write`,不再手写) | 人工不再改(冻结) |
 | [`00_模板/CLAUDE_Template.md`](../../00_模板/CLAUDE_Template.md) | **vault 端 CLAUDE.md 的注入段** —— 包含仓库性质 / 5 条铁律 / 身份 / 5 skill 协作约定 | `scripts/init-vault.mjs`(注入到 vault/CLAUDE.md,begin/end 包裹) | 人工维护(plugin 升级时 init 会 in-place 刷新 begin/end 中间内容) |
 
 **关键设计**:
 
 - **`读书笔记模板.md` 是空壳,不是成品** —— 它的字段值是占位的(空字符串),由 sync 脚本或 sub agent 填实。这是「模板」与「成品笔记」的核心区别
 - **`标签词表.md` 是 5 个 skill 的共同语言** —— 没有它,LLM 写笔记时 tags 字段会自由发挥,`lint-wiki tag-drift` 会大量误报。词表是「LLM 打标可枚举」的唯一约束
-- **`Log_Spec.md` 和 `Index_Spec.md` 是收尾规范** —— 与 skill 行为契约解耦,所有 skill 共享同一份格式约束(避免每个 skill 自己定义一套)
+- **`Log_Spec.md` 和 `Index_Spec.md` 是收尾规范** —— 与 skill 行为契约解耦,所有 skill 共享同一份格式约束(避免每个 skill 自己定义一套)。**`Index_Spec.md` v1 已弃用**——新规则在 plugin 仓 `spec-index-v2.md`,由 `scripts/sync-index.mjs` 自动维护,LLM **禁止手写** Index.md 行
 - **`CLAUDE_Template.md` 是 vault 端 CLAUDE.md 的「注入段」** —— init 把它包在 `<!-- llm-wiki-plugin-init:begin/end -->` 之间;vault 用户的 CLAUDE.md 可能有自己写的「私人段」,begin/end 包裹保证那段一字不动
 
 ### 3.3 模板与 skill 的耦合关系
@@ -136,7 +136,7 @@ plugin 的 5 类 markdown 笔记不是「LLM 凭空造出来的」——它们�
 | `读书笔记模板.md` | obsidian-collacting(强) / lint-wiki(中,只检查空段) | sync 脚本 cp 到 `02_读书笔记/<主题>/<name>.md`,sub agent Edit 占位字段 |
 | `标签词表.md` | obsidian-collacting(强,打标前必读)/ knowledge-graph-sync(强,entity/concept tags)/ llm-wiki-query(强,QA tags)/ lint-wiki(强,tag-drift 检查) | Read 全文锁定枚举;sub agent tags 字段仅从 §2 枚举取值 |
 | `Log_Spec.md` | 5 个 skill 全部 | SKILL.md 收尾步按 §2 通用格式 append(逻辑分散在各 skill 内部,无中央脚本入口) |
-| `Index_Spec.md` | obsidian-collacting(强) / llm-wiki-query(强) | 阶段 3 / D4 按 §3 表格 append 一行 |
+| `Index_Spec.md` | 已冻结(v1 弃用) | obsidian-collacting 阶段 9 + llm-wiki-query 阶段 D4 改调 `node scripts/sync-index.mjs --all --write`(LLM 不再手写) |
 | `CLAUDE_Template.md` | llm-wiki-plugin-init(强) | init 时按 begin/end 包裹注入 vault/CLAUDE.md |
 
 ---
@@ -193,7 +193,7 @@ karpathy 原文给 wiki 生命周期定义了三个动作:**Ingest / Query / Lin
   - **图片**:先调 `convert-office.mjs`(走 PaddleOCR)预转 md,再 cp 模板
   - 全部走两步 sub agent 工作流:阶段 2 并行写笔记 → 阶段 3 串行抽 entity/concept(避免 sources 数组覆盖)
 - **不做什么**:不读 PDF 内容本身写笔记(由 sub agent 读);不修改 reviewed: true 的 entity/concept 正文
-- **强制收尾**:append `Index.md`(新建/删除对应)+ append `Log.md`(倒序,§13.1 格式)
+- **强制收尾**:`node scripts/sync-index.mjs --all --write` 重建 `Index.md`(v2 起 LLM **禁手写**)+ append `Log.md`(倒序,§13.1 格式)
 
 > 详细规范:[spec-obsidian-collacting.md](spec-obsidian-collacting.md)
 
@@ -218,7 +218,7 @@ karpathy 原文给 wiki 生命周期定义了三个动作:**Ingest / Query / Lin
   3. **C 归档判定**:LLM 自检 Q1-Q5 强信号(≥3 事实点 / 跨 ≥2 source / 含图表 / 追问 ≥2 轮 / 揭示新连接)
   4. **D 归档阶段**:满足 ≥1 → 全自动写 `03_问答区/<主题>/<slug>.md`;路径冲突走 `## 续答` 段追加
 - **不做什么**:不反向链接到 entity/concept 的 `sources:`(QA 是只读型);不为归档而捏造 Q 命中
-- **强制收尾**(仅触发归档时):append `Index.md` + append `Log.md`(含 `召回方式` 字段)
+- **强制收尾**(仅触发归档时):`node scripts/sync-index.mjs --add <path> --write` 更新 `Index.md` + append `Log.md`(含 `召回方式` 字段)
 
 > 详细规范:[spec-query.md](spec-query.md)
 
@@ -272,7 +272,7 @@ obsidian-collacting 触发:
      - 给两个页 append sources: [[02_读书笔记/<主题>/foo.md]]
      - 给两个页 ## Mentions in Source 段 append 原文片段
   8. 给 foo.md 末尾追加 ## Related Pages 段(Entities + Concepts)
-  9. Index.md append 一条:[[02_读书笔记/<主题>/foo.md]]
+  9. `` `node scripts/sync-index.mjs --all --write` `` 重建 Index.md(含 foo.md 行,v2 起脚本维护非手写)
   10. Log.md 倒序追加一条(obsidian-collacting 最小条目)
        ↓
 几周后用户问:"vault 里有没有关于 Bar Pattern 的内容?"
@@ -286,7 +286,7 @@ llm-wiki-query 触发:
      - 「Bar Pattern 是 Foo Inc. 在 [[02_读书笔记/<主题>/foo]] 第 3 段提出的设计模式,核心是……」
   5. 归档判定:命中 Q1(≥3 事实点)→ 走 D 归档
   6. 写 03_问答区/<主题>/bar-pattern-explained.md(双 frontmatter + 4 段)
-  7. Index.md append 一条
+  7. `` `node scripts/sync-index.mjs --add 03_问答区/<主题>/bar-pattern-explained.md --write` `` 更新 Index.md
   8. Log.md 倒序追加一条(query 最小条目,含 召回方式: qmd)
        ↓
 下个月用户说"扫一遍 wiki"
@@ -406,11 +406,12 @@ f:\llm-wiki-plugin\
 ├── .claude-plugin/             # plugin manifest
 ├── .mcp.json                   # qmd MCP server 声明(v3 起 plugin 不再依赖)  
 ├── .gitignore
-├── 00_模板/                    # 5 个模板文件,plugin 行为契约的「前置」约定
+├── 00_模板/                    # 6 个模板文件,plugin 行为契约的「前置」约定
 │   ├── 读书笔记模板.md          # source 笔记空壳(5 字段 frontmatter + 4 段正文)
 │   ├── 标签词表.md             # 4 轴 35 枚举 + entity 7 子类 + concept 7 子类 + 三层互斥规则
 │   ├── Log_Spec.md            # Log.md 写入唯一规范(倒序/H2 双空格/反引号路径)
-│   ├── Index_Spec.md          # Index.md 写入唯一规范(wiki-link 硬约束 + 表格结构)
+│   ├── Index_Spec.md          # Index.md v1 旧规范存档(已弃用 2026-08-29;新规则见 docs/superpowers/specs/spec-index-v2.md)
+│   ├── Index_Skeleton.md      # v2 init 注入的 Index.md 骨架(含 sync-index 标记块占位)
 │   └── CLAUDE_Template.md     # vault 端 CLAUDE.md 的注入段(begin/end 包裹)
 ├── 10_schema/
 │   └── config.md              # vault 端 Single Source of Truth
@@ -418,7 +419,7 @@ f:\llm-wiki-plugin\
 │   └── web_clipper/README.md  # 拷贝到 vault
 ├── hooks/
 │   └── hooks.json             # SessionStart → check-update.mjs + qmd-detect.mjs (v3)
-├── scripts/                    # 6 个 .mjs + 6 个 .test.mjs
+├── scripts/                    # init 时拷入 5 个 CLI .mjs (+v2 sync-index.mjs) + 各 .test.mjs 单测
 ├── skills/                     # 5 个 skill
 │   ├── llm-wiki-plugin-init/
 │   ├── obsidian-collacting/
@@ -447,8 +448,8 @@ f:\llm-wiki-plugin\
 │   └── web_clipper/            # Web Clipper 写入
 ├── 附件文件夹/                 # Obsidian 附件目录
 ├── .obsidian/                  # Obsidian 自身配置(init 不创建,首次打开自动生成)
-├── scripts/                    # init 时拷入的 4 个 CLI 脚本(覆盖写)
-├── Index.md                    # 资料索引表
+├── scripts/                    # init 时拷入的 5 个 CLI 脚本(覆盖写;v2 +sync-index.mjs)
+├── Index.md                    # 资料索引表(v2 起由 sync-index.mjs 维护,LLM 禁手写)
 ├── Log.md                      # 操作流水(倒序)
 └── CLAUDE.md                   # 用户自维护 + init 注入的 llm-wiki 段
 ```
@@ -493,13 +494,13 @@ f:\llm-wiki-plugin\
 | `00_模板/读书笔记模板.md` | vault 端**所有**新建 source 笔记的字段 + 段结构;`scripts/sync-pdf-notes.mjs` 拷贝内容 | 同步改 `10_schema/config.md §2`(source 模板段);同步改 `00_模板/标签词表.md` 引用(若有);init 升级后老 vault 不会自动更新(cpIfMissing 保留用户修改) |
 | `00_模板/标签词表.md` | 全部 5 skill 的 sub agent 打标行为;lint-wiki `tag-drift` 检查;`scripts/lint-wiki.mjs` 的枚举校验 | 同步改 `10_schema/config.md §3`(词表段,引用指向本文件);新枚举不需要「回填老笔记」(老笔记的旧 tag 走 lint-wiki 异步捕获) |
 | `00_模板/Log_Spec.md` | 5 skill 的 log 条目格式;`Log_Spec.md §2` 通用格式 | 同步改 `Log_Spec.md`(本来就是 SoT);新 skill 要加 §3.x 最小条目 |
-| `00_模板/Index_Spec.md` | obsidian-collacting / llm-wiki-query 的 index 条目 | 同步改 `obsidian-collacting/SKILL.md` 步骤 9 + `llm-wiki-query/SKILL.md` 阶段 D4 的渲染模板 |
+| `00_模板/Index_Spec.md` | **已弃用(v1 冻结 2026-08-29)**;新规则在 `docs/superpowers/specs/spec-index-v2.md`,由 `scripts/sync-index.mjs` 维护 | 不再改；同步改 `obsidian-collacting/SKILL.md` 步骤 9 + `llm-wiki-query/SKILL.md` 阶段 D4 + `knowledge-graph-sync/SKILL.md` Phase 6 为 `node scripts/sync-index.mjs --all --write` |
 | `00_模板/CLAUDE_Template.md` | vault 端所有 CLAUDE.md 的注入段 | 同步改 `scripts/init-vault.mjs` 的 in-place 替换逻辑(已经是 begin/end 包裹,无需改脚本);老 vault 跑一次 init 自动 in-place 刷新 |
 
 **铁律**:
 
 1. **不维护副本** —— `10_schema/config.md` 已删除模板相关段(指向模板文件);不允许在 config 里再抄一份
-2. **改前先看 init 是否能同步** —— `读书笔记模板.md` / `Log_Spec.md` / `Index_Spec.md` / `CLAUDE_Template.md` 都通过 init 的 `copyIfMissing` 部署到 vault,init 升级**不覆盖**(保留用户修改);只有 `CLAUDE_Template.md` 的 begin/end 中间内容走 in-place 刷新
+2. **改前先看 init 是否能同步** —— `读书笔记模板.md` / `Log_Spec.md` / `Index_Spec.md` / `Index_Skeleton.md` / `CLAUDE_Template.md` 都通过 init 的 `copyIfMissing` 部署到 vault,init 升级**不覆盖**(保留用户修改);只有 `CLAUDE_Template.md` 的 begin/end 中间内容走 in-place 刷新
 3. **改词表先评估下游** —— 词表新增一个 domain 值,会触发 lint-wiki 把它列入 Vocab Suggestions 的「已补入」桶(下次 lint 不再报),但不会回填老笔记(老笔记保留旧 tag,人工可决定是否改)
 4. **改模板必须 commit message 显式标注** —— `docs(00_模板):<改了哪个文件>` + 在 PR description 里写「影响哪些 skill」
 
@@ -513,7 +514,9 @@ f:\llm-wiki-plugin\
   - [`00_模板/读书笔记模板.md`](../../00_模板/读书笔记模板.md)
   - [`00_模板/标签词表.md`](../../00_模板/标签词表.md)
   - [`00_模板/Log_Spec.md`](../../00_模板/Log_Spec.md)
-  - [`00_模板/Index_Spec.md`](../../00_模板/Index_Spec.md)
+  - [`00_模板/Index_Spec.md`](../../00_模板/Index_Spec.md) (v1 已弃用,存档)
+  - [`00_模板/Index_Skeleton.md`](../../00_模板/Index_Skeleton.md) (v2 init 注入骨架)
+  - [`docs/superpowers/specs/spec-index-v2.md`](spec-index-v2.md) (v2 权威规范)
   - [`00_模板/CLAUDE_Template.md`](../../00_模板/CLAUDE_Template.md)
 - 各 skill 详细规范:
   - [spec-init.md](spec-init.md)

@@ -89,9 +89,9 @@ git pull --ff-only
 | Skill | 触发词 | 做什么 |
 |---|---|---|
 | `knowledge-graph-sync` | knowledge graph / 同步反向引用 / 知识图谱同步 | 手动触发；只补存量 `02_读书笔记/` 的反向引用 `## Related Pages`，不读 PDF、不写正文 |
-| `lint-wiki` | lint / healthcheck / 检查 vault / 扫一遍笔记 / 跑 lint | 只读不写；扫 source/entity/concept 14 类健康问题到 `scripts/_lint-report.md` |
-| `obsidian-collacting` | 整理 / Inbox / web clipper / office / ppt / word / excel / 图片 | `Inbox/` 6 源（pdf / web_clipper md / pptx / docx / xlsx / png-jpg）→ 归档到 `01_知识库/` → 生成 `02_读书笔记/` 模板 → 写正文 → 抽 entity/concept；office 走 anydoc / 图片走 PaddleOCR（`scripts/convert-office.mjs` 预转 md）|
-| `llm-wiki-query` | 在知识库查一下 / 查一下知识库 / 知识库查一下 / 在 wiki 查一下 | 显式触发；朴素 Grep 或 qmd（按 vault 大小自动选, 详见下文）召回（按 vault 优先级 `02_读书笔记/ > 11_entities/ > 12_concepts/ > 01_知识库/ > 03_问答区/(可选)`）+ 引用合成答案；用户确认「归档」后写到 `03_问答区/` |
+| `lint-wiki` | lint / healthcheck / 检查 vault / 扫一遍笔记 / 跑 lint | 只读不写；扫 source/entity/concept + Index.md 同步 17 类健康问题到 `scripts/_lint-report.md`(v2 新增 `index-missing` / `index-ghost`) |
+| `obsidian-collacting` | 整理 / Inbox / web clipper / office / ppt / word / excel / 图片 | `Inbox/` 6 源（pdf / web_clipper md / pptx / docx / xlsx / png-jpg）→ 归档到 `01_知识库/` → 生成 `02_读书笔记/` 模板 → 写正文 → 抽 entity/concept → `node scripts/sync-index.mjs --all --write` 重建 Index.md;office 走 anydoc / 图片走 PaddleOCR（`scripts/convert-office.mjs` 预转 md）|
+| `llm-wiki-query` | 在知识库查一下 / 查一下知识库 / 知识库查一下 / 在 wiki 查一下 | 显式触发；朴素 Grep 或 qmd（按 vault 大小自动选, 详见下文）召回（按 vault 优先级 `02_读书笔记/ > 11_entities/ > 12_concepts/ > 01_知识库/ > 03_问答区/(可选)`）+ 引用合成答案；用户确认「归档」后写到 `03_问答区/` + 调 `sync-index.mjs --add <path> --write` 更新 Index.md |
 
 ## 内含资产
 
@@ -99,8 +99,10 @@ git pull --ff-only
 llm-wiki-plugin/
 ├── skills/                     # 5 个 SKILL.md（Claude Code 自动识别）
 ├── scripts/
+│   ├── init-vault.mjs          # init 冷启动脚本 (vault 校验 + 资产注入 + 脚本同步)
+│   ├── sync-index.mjs          # v2 Index.md 维护器 (--all/--add/--remove/--check/--write)
 │   ├── lint-wiki.mjs           # lint-wiki 主脚本
-│   ├── lint-wiki.test.mjs      # lint-wiki 单元测试 (82 cases)
+│   ├── lint-wiki.test.mjs      # lint-wiki 单元测试 (102 cases)
 │   ├── sync-pdf-notes.mjs      # obsidian-collacting 同步 PDF 笔记
 │   ├── convert-office.mjs      # obsidian-collacting 预转 office/image 为 md（anydoc/paddleocr）
 │   └── convert-office.test.mjs # convert-office 单元测试 (11 cases)
@@ -127,7 +129,9 @@ llm-wiki-plugin/
 
 ```bash
 cd <plugin-repo>
-node --test scripts/lint-wiki.test.mjs           # 82 cases
+node --test scripts/lint-wiki.test.mjs           # 102 cases
+node --test scripts/init-vault.test.mjs          # 26 cases
+node --test scripts/sync-index.test.mjs          # 51 cases
 node --test scripts/convert-office.test.mjs      # 11 cases
 ```
 
@@ -145,8 +149,8 @@ node --test scripts/convert-office.test.mjs      # 11 cases
 
 行为：
 - 创建 8 个 wiki 目录（`01_知识库/` `02_读书笔记/` `11_entities/` `12_concepts/` `Inbox/` `00_模板/` `10_schema/` `附件文件夹/`）+ `03_问答区/`（llm-wiki-query skill 的归档区）
-- 创建 2 个顶层 md 占位（`Index.md` `Log.md`）+ `Inbox/.gitkeep` + `03_问答区/_cross/.gitkeep`
-- 拷贝 3 个 plugin 资产到 vault 同名位置（已存在则跳过,**不覆盖**）
+- 创建 1 个顶层 md 占位（`Log.md`）+ `Inbox/.gitkeep` + `03_问答区/_cross/.gitkeep`（v2 起 `Index.md` 由 assetMap 注入 `Index_Skeleton.md`,不再是 placeholder）
+- 拷贝 5 个 plugin 资产到 vault 同名位置（已存在则跳过,**不覆盖**）;含 v2 新加 `00_模板/Index_Skeleton.md` → vault 根 `Index.md`
 - 把 `00_模板/CLAUDE_Template.md` 内容追加到 vault/CLAUDE.md 末尾（`<!-- llm-wiki-plugin-init:begin/end -->` 包裹,幂等）
 
 幂等可重复跑,vault 已部分初始化时只输出"已存在"。
