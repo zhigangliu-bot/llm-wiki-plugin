@@ -153,15 +153,32 @@ node --test scripts/convert-office.test.mjs      # 11 cases
 
 详见 spec：[myself-marketplace 仓 spec](https://github.com/zhigangliu-bot/myself-marketplace/blob/main/docs/superpowers/specs/2026-08-23-llm-wiki-plugin-init-design.md)
 
-## 关于 `llm-wiki-query` 的召回路径（朴素 Grep）
+## 关于 `llm-wiki-query` 的召回路径（v3 自动选择）
 
-`llm-wiki-query` skill 默认走 **朴素 Grep**（LLM 自己用 `grep -rl` 扫 vault + `Read` 深读），不依赖任何外部搜索引擎。
+`llm-wiki-query` skill **自动**根据 vault 大小选择朴素 Grep 或 qmd MCP 召回。SessionStart 时跑 [`scripts/qmd-detect.mjs`](../scripts/qmd-detect.mjs)，结果注入 LLM context 一段 `<system-context>`，LLM 按 `effective_path` 调对应工具。
 
-**为什么不再走 qmd MCP：** 朴素 Grep + 多 anchor 召回对小 vault 够用（你的笔记规模还没到必须用 BM25/向量检索的程度），且零运行时依赖 / 零外部组件 / 零安装成本。未来若 vault 规模上去需要语义搜索，再起独立 skill 接入 qmd。
+**三档：**
 
-**设计依据：** [reference/llm-wiki.md](reference/llm-wiki.md) §"Optional: CLI tools"——karpathy 明确说「at small scale the index file is enough, but as the wiki grows you want proper search」，qmd 是 wiki 长大的升级选项，不是默认。
+| vault 大小 | 自动行为 |
+| --- | --- |
+| `< 500` 笔记 | 强制朴素 Grep |
+| `500-3000` | qmd 装了 → qmd；没装 → 朴素 Grep + 首次引导装 |
+| `>= 3000` | qmd 装了 → qmd；没装 → 朴素 Grep + 每次强提示 |
 
-详见 spec：[docs/superpowers/specs/2026-08-23-query-skill-design.md](docs/superpowers/specs/2026-08-23-query-skill-design.md)。**注意**：该 spec 写于 v2（含 qmd MCP 路径），归档保留供考古；当前 SKILL.md 实现以朴素 Grep 为准。
+**为什么用 v3 自动选择而不是纯 grep：** 朴素 Grep 在小 vault 完美够用，但 vault 长到 1500+ 后召回噪声大。v3 把路径决策交给 Node 脚本，LLM 按指令执行——比 v2 的「LLM 自检 vault 大小」更可文档化、更可测试。
+
+**vault 用户 override：** 写 vault root `.llm-wiki-query-state.json`：
+
+```json
+{
+  "path_override": "grep",   // 或 "qmd" / "auto"
+  "引导_skipped_at": "2026-08-29T10:00:00Z"
+}
+```
+
+**设计依据：** karpathy LLM Wiki 原文 `reference/llm-wiki.md` §"Optional: CLI tools"——「at small scale the index file is enough, but as the wiki grows you want proper search」。v3 完整 spec 见 [docs/superpowers/specs/spec-query.md](../superpowers/specs/spec-query.md)。
+
+**关于 qmd 的安装：** 见 [github.com/tobi/qmd](https://github.com/tobi/qmd)（npm: `@tobilu/qmd`）。vault 用户手动 `npm i -g @tobilu/qmd` 后下次 SessionStart 自动切到 qmd 路径。
 
 ## License
 
