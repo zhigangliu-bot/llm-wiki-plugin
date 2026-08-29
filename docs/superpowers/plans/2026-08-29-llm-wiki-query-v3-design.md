@@ -966,7 +966,7 @@ git commit -m "docs(plugin): 五 skill 协作图 + 文件索引表 sync llm-wiki
 ```markdown
 ## 关于 `llm-wiki-query` 的召回路径（v3 自动选择）
 
-`llm-wiki-query` skill **自动**根据 vault 大小选择朴素 Grep 或 qmd MCP 召回。SessionStart 时跑 [`scripts/qmd-detect.mjs`](../scripts/qmd-detect.mjs)，结果注入 LLM context 一段 `<system-context>`，LLM 按 `effective_path` 调对应工具。
+`llm-wiki-query` skill **自动**根据 vault 大小选择朴素 Grep 或 qmd MCP 召回。SessionStart 时跑 [`scripts/qmd-detect.mjs`](scripts/qmd-detect.mjs)，结果注入 LLM context 一段 `<system-context>`，LLM 按 `effective_path` 调对应工具。
 
 **三档：**
 
@@ -987,7 +987,7 @@ git commit -m "docs(plugin): 五 skill 协作图 + 文件索引表 sync llm-wiki
 }
 ```
 
-**设计依据：** karpathy LLM Wiki 原文 `reference/llm-wiki.md` §"Optional: CLI tools"——「at small scale the index file is enough, but as the wiki grows you want proper search」。v3 完整 spec 见 [docs/superpowers/specs/spec-query.md](../superpowers/specs/spec-query.md)。
+**设计依据：** karpathy LLM Wiki 原文 `reference/llm-wiki.md` §"Optional: CLI tools"——「at small scale the index file is enough, but as the wiki grows you want proper search」。v3 完整 spec 见 [docs/superpowers/specs/spec-query.md](docs/superpowers/specs/spec-query.md)。
 
 **关于 qmd 的安装：** 见 [github.com/tobi/qmd](https://github.com/tobi/qmd)（npm: `@tobilu/qmd`）。vault 用户手动 `npm i -g @tobilu/qmd` 后下次 SessionStart 自动切到 qmd 路径。
 ```
