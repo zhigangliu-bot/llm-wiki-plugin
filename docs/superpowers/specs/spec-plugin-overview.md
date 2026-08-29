@@ -65,7 +65,7 @@ plugin 自身是分层交付物,和 karpathy 原文的「原始素材 / wiki / s
 │   角色:karpathy 思路 → Claude Code 可消费的具体实现                    │
 │   关键文件:                                                         │
 │     - skills/<name>/SKILL.md       5 份,LLM 流程编排                   │
-│     - scripts/*.mjs                7 份,纯 IO(Node stdlib)            │
+│     - scripts/*.mjs                6 份,纯 IO(Node stdlib)            │
 │     - scripts/*.test.mjs           6 份,node:test 内置单测 (lint-wiki / sync-pdf-notes / convert-office / check-update / init-vault / qmd-detect)│
 │     - 10_schema/config.md          vault 端 schema 唯一信息源             │
 │     - 00_模板/                     4 类 markdown 模板                  │
@@ -243,7 +243,7 @@ karpathy 原文给 wiki 生命周期定义了三个动作:**Ingest / Query / Lin
 | **init** | — | 无依赖 | 无依赖 | 无依赖 | 无依赖 |
 | **obsidian-collacting** | 无依赖 | — | 互补(kg-sync 补存量) | 无依赖 | 周期体检 |
 | **kg-sync** | 无依赖 | 反向依赖(obsidian-collacting 跳过已 Related Pages 的) | — | 无依赖 | 周期体检 |
-| **query** | 间接(init 时建 `03_问答区/`) | **互斥**(不调) | **互斥**(不调) | — | 周期体检 |(v3: 读 qmd-detect.mjs SessionStart 输出)
+| **query** | 间接(init 时建 `03_问答区/`) | **互斥**(不调) | **互斥**(不调) | — | 周期体检 (v3: 读 qmd-detect.mjs SessionStart 输出) |
 | **lint** | 无依赖 | 只读 | 只读 | 只读 | — |
 
 **关键设计**:
@@ -278,7 +278,7 @@ obsidian-collacting 触发:
 几周后用户问:"vault 里有没有关于 Bar Pattern 的内容?"
        ↓
 llm-wiki-query 触发:
-  1. (SessionStart 时 qmd-detect.mjs 已注入 system context: tier=large, effective_path=qmd, qmd_available=true)
+  1. (SessionStart 时 qmd-detect.mjs 已注入 system context: 例:tier=<observed>, effective_path=<grep|qmd>, qmd_available=<bool>)
   2. 调 mcp__qmd__query(vec: "Bar Pattern", limit=10)
      - 命中:12_concepts/bar-pattern.md(score 0.85)
   3. 对 score≥0.6 调 mcp__qmd__get(bar-pattern.md)取完整内容
@@ -313,7 +313,7 @@ lint-wiki 触发:
 - Node 脚本可被 `node --test` 覆盖(grep stderr / stdout / exit code)
 - SKILL.md 是给 LLM 读的,纯流程文本,不需要维护 IO 边界
 
-**当前脚本清单**(7 份):
+**当前脚本清单**(6 份):
 
 | 脚本 | 职责 | 触发方 |
 |---|---|---|
@@ -321,10 +321,8 @@ lint-wiki 触发:
 | `sync-pdf-notes.mjs` | PDF → 空笔记模板 | obsidian-collacting 步骤 4 |
 | `convert-office.mjs` | pptx/docx/xlsx/image → md | obsidian-collacting 步骤 4'' |
 | `lint-wiki.mjs` | 扫 15 类问题 + 词表建议 | lint-wiki skill |
-| `log-append.mjs` | Log.md 倒序追加(CLI + 函数双入口) | 5 个 skill 收尾 |
 | `check-update.mjs` | SessionStart hook,git pull --ff-only | hooks/hooks.json |
 | `qmd-detect.mjs` | SessionStart hook,3 档 tier + effective_path + suggestion flags 决策 | hooks/hooks.json (v3 matcher) |
-| `migrate-quote-frontmatter.mjs` | frontmatter 引号迁移(一次性) | 手动 |
 
 ### 5.2 5 类 markdown 的 frontmatter 强约束
 
@@ -420,7 +418,7 @@ f:\llm-wiki-plugin\
 │   └── web_clipper/README.md  # 拷贝到 vault
 ├── hooks/
 │   └── hooks.json             # SessionStart → check-update.mjs + qmd-detect.mjs (v3)
-├── scripts/                    # 8 个 .mjs + 6 个 .test.mjs
+├── scripts/                    # 6 个 .mjs + 6 个 .test.mjs
 ├── skills/                     # 5 个 skill
 │   ├── llm-wiki-plugin-init/
 │   ├── obsidian-collacting/
