@@ -32,9 +32,50 @@ description: 在知识库查一下
 
 ## 阶段 B：查询阶段（无 vault 写操作）
 
-**唯一召回路径：朴素 Grep**（按 karpathy 起手姿势）。**不**再依赖 qmd MCP、不需要混合检索框架。
+**路径选择：v3 由 SessionStart hook 注入 system context 决定.** 朴素 Grep 与 qmd MCP 共存, LLM 按 system context 里的 `effective_path` 调对应工具. 详见末尾 §"v3 路径选择".
 
-### B0：入口优先级
+### B0：读 system context 路径决策
+
+**B0.0 读 system context:** SessionStart 时 `hooks/hooks.json` matcher 调用 `scripts/qmd-detect.mjs`, 已注入 LLM context 一段形如:
+
+```
+<system-context>
+llm-wiki-query path selection:
+  tier: <small|medium|large> (vault_size: <N> .md files)
+  effective_path: <grep|qmd>
+  qmd_available: <true|false>
+  state_override: <grep|qmd|auto|null>
+  should_suggest_qmd_install: <bool>
+  should_warn_grep_unstable: <bool>
+</system-context>
+```
+
+LLM 记下 `effective_path` 进入 B0.1.
+
+**B0.1 按 effective_path 分支:**
+
+- `effective_path === "grep"`:
+  走 B1 (v2 老路径) — 多 anchor Grep + Read frontmatter+重点段.
+- `effective_path === "qmd"`:
+  - 调 `mcp__qmd__query({vec: <用户原问题>, limit: 10})` 取 recall 结果 (path + snippet + score).
+  - 对 `score ≥ 0.6` 的 hits 调 `mcp__qmd__get({path})` 取完整内容; 缺失的 fallback 到 Read 工具读对应路径.
+  - 与 grep 模式同样要求: 读 frontmatter + 关键段 (`## 重点摘录` / `## 我的思考` / entity 5-6 段 / concept 定义段) 重建 `[[wiki 链接]]` 粒度.
+  - qmd MCP 工具调用失败 (`tool_not_found` / `timeout`) → 降级到 B1 多 anchor Grep 路径, 主对话输出 `[qmd MCP 不可用, fallback 朴素 Grep 召回]` warning 一句 (不阻塞).
+
+**B0.2 引导逻辑 (按 system context 的 flags):**
+
+- `should_suggest_qmd_install === true` (medium tier + qmd 未装 + 引导未跳过):
+  主对话输出**一次性**装说明: 「vault >= 500 且当前用朴素 Grep, 你可以考虑装 [qmd](https://github.com/tobi/qmd) 提升召回 (npm i -g @tobilu/qmd). 跳过则后续不再提示 (vault >= 3000 时除外).」
+  vault 用户回「跳过」 → 写 vault root `.llm-wiki-query-state.json`:
+  ```json
+  {"引导_skipped_at": "<当前 ISO 8601>"}
+  ```
+  若 vault 用户不表态 → 本次 session 不再问, 下次 SessionStart 重新判断.
+- `should_warn_grep_unstable === true` (large tier + qmd 未装 + 未 override):
+  主对话在**每次询问阶段 B 之前**输出强提示: 「vault >= 3000 朴素 Grep 召回不稳, 强烈建议装 qmd (npm i -g @tobilu/qmd). 已装后下次 session 自动切.」
+  直到 vault 用户装上 **或** 在 vault root `.llm-wiki-query-state.json` 写 `"path_override": "grep"` 显式拒绝.
+
+### B0：入口优先级 (vault 内部目录, 不变)
 
 按以下顺序扫目录（与 vault `CLAUDE.md` 铁律 #2 同步）：
 
@@ -249,48 +290,47 @@ tags:
 - ✅ **必须**每条事实带 `[[wiki 链接]]`
 - ✅ **必须**先输出答案给用户，再等用户是否要归档——不颠倒顺序
 
-# Optional: 何时用朴素 grep，何时考虑 qmd
+# v3 路径选择 (SessionStart hook + state.json override)
 
-本 skill 当前**唯一召回路径是朴素 Grep + Read**（阶段 B）。[`qmd`](https://github.com/tobi/qmd)（npm 包名 `@tobilu/qmd`）是 markdown 文件的本地混合检索（BM25 + 向量 + LLM rerank），是本 skill 的可选升级——但**即便装上，本 skill 也不会自动切过去**，见末尾「装好后也不自动用」。
+v3 起, 召回路径**自动**由 `scripts/qmd-detect.mjs` 决定, LLM 仅按 system context 调对应工具 (阶段 B0). vault 用户无需手动选.
 
-设计依据参考本仓 `reference/llm-wiki.md`（karpathy LLM Wiki 原文）§"Optional: CLI tools"——「at small scale the index file is enough, but as the wiki grows you want proper search」。
+**三档 (vault_size 计算 = 递归数 vault 根 .md, 排除 00_模板/ .obsidian/ node_modules/ .git/ temp/):**
 
-## 决策表（vault 用户当前用 grep；满足「上 qmd」一节条件时才考虑切）
+| tier | vault_size | automatic 行为 |
+| --- | --- | --- |
+| `small` | `< 500` | 强制 `grep` (不探 qmd, 不出提示) |
+| `medium` | `500 ≤ v < 3000` | qmd 装了就 `qmd`, 没装就 `grep` + **首次引导装一次** |
+| `large` | `>= 3000` | qmd 装了就 `qmd`, 没装就 `grep` + **每次询问前强提示** |
 
-| vault 规模 / 查询类型 | 当前用 | 何时该考虑 qmd | 为什么 |
-| --- | --- | --- | --- |
-| < 500 篇 + 精确名词查询（"X 包含哪几块"、"A 的标准号"） | 朴素 grep | 不必 | 召回精准、零依赖 |
-| < 500 篇 + 语义追问（"为什么 X 这样设计"、"A 和 B 的取舍"） | 朴素 grep（拆 anchor） | 不必 | 量级未到 BM25 / 向量的盈亏平衡点 |
-| > 500 篇 + 精确名词查询 | 朴素 grep（多 anchor + 按目录优先级） | **可考虑** | 朴素 grep 性能足够；qmd 不显著提升 |
-| > 500 篇 + 语义追问，或大量未加工 PDF 转 md | 朴素 grep（短期）→ qmd（当长期） | **强烈推荐** | 只有 BM25 + 向量 + rerank 才能稳住 top-3 |
+`vault_size` 阈值 (500 / 3000) 写死在 `scripts/qmd-detect.mjs` 顶部 `THRESHOLDS`.
 
-**默认结论：** **朴素 grep 是当前 vault 用户唯一召回路径**。vault 长到「上 qmd」一节条件时再考虑。
+## vault 用户 override (可选)
 
-## 满足以下任一条件时上 qmd
+写 vault root `.llm-wiki-query-state.json`:
 
-- vault 笔记数 **> 500 篇**——`grep -l "<anchor>" <vault>/` 召回 ≥ 20 篇但 top-3 不准，召回噪声大
-- 查询多为**语义追问**（anchor 难拆分成精确名词短语）
-- 有大量 `01_知识库/` 未亲自加工的 PDF 转 md 内容——事实密度低、朴素 grep 噪声大
-- 朴素 grep 跑下来 LLM 频繁答「仓库无相关笔记」但**你知道应该有**
+```json
+{
+  "path_override": "grep",   // "grep" | "qmd" | "auto" (= 缺省, 自动)
+  "引导_skipped_at": "2026-08-29T10:00:00Z"   // 可选, medium tier 跳过引导后写入
+}
+```
 
-## 不满足任一条件时不要装
+- `path_override: "grep"` — 永远用 grep (vault >= 3000 时用于解封强提示)
+- `path_override: "qmd"` — 永远用 qmd (qmd 未装时 LLM 端报 tool-not-found, fallback 到 grep)
+- 字段缺失/非法值 → 忽略, 走 auto.
 
-朴素 grep 没这些负担：
+## 设计依据
 
-- **首次 `qmd embed`** 对大 vault 耗时数分钟（建索引）
-- **下载 rerank 模型** 约 1 GB 到本地缓存
-- **多一个 MCP 失败处理面** 要写在 skill / 调用代码里
-- **维护两份索引**：vault 增删笔记后要同步 `qmd embed` 重跑
+`scripts/qmd-detect.mjs` 路径决策由 Node 脚本决定 — 不依赖 LLM 自检, 可文档化 / 可测试 / 行为可预测. 三件套: 脚本 + SessionStart hook + state.json override. 完整 spec 见 [docs/superpowers/specs/spec-query.md](../superpowers/specs/spec-query.md).
 
-## 装好后也不自动用（本 skill 行为不变）
+karpathy LLM Wiki 原文 `reference/llm-wiki.md` §"Optional: CLI tools" 仍为顶层依据: 「at small scale the index file is enough, but as the wiki grows you want proper search」.
 
-本 skill 的阶段 B 行为以朴素 grep 为准，**不**感知 qmd 是否已装。LLM 看到 `mcp__qmd__query` / `mcp__qmd__get` 工具已就绪时不会自动切过去——保持 skill 行为可预测、可文档化。
+## Q1-Q5 与引用粒度
 
-混用两条召回路径会让 Q1-Q5 自检与答案引用难以稳定，本期不引入该复杂度。
+v3 设计明示接受两条 trade-off (写在 [spec §7](docs/superpowers/specs/spec-query.md#7)):
 
-## 未来升级路径（独立 skill，非开关）
-
-等 vault 长到「上 qmd」条件时，新增一个 `qmd-recall` 之类**独立 skill**走 qmd MCP 路径，本 skill 保持纯净。本期 YAGNI——本 skill 不加「如果装了 qmd 就……」的分支判断。
+- **Q1-Q5 跨模式不感知** — LLM 看答案本身, 阈值不按召回路径调优.
+- **qmd 召回后补 Read 重建 `[[wiki 链接]]` 粒度** — qmd 召回时 hit 列表是 `path+snippet+score`, 后续用 Read 工具读 frontmatter+重点段, 与 grep 模式粒度对齐.
 
 # 关联资产
 
