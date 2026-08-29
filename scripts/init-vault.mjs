@@ -261,6 +261,7 @@ export async function runInit({ vaultRoot, pluginRoot = DEFAULT_PLUGIN_ROOT }) {
   const assetMap = [
     ['00_模板/读书笔记模板.md', '00_模板/读书笔记模板.md'],
     ['00_模板/标签词表.md', '00_模板/标签词表.md'],
+    ['00_模板/Index_Skeleton.md', 'Index.md'],
     ['10_schema/config.md', '10_schema/config.md'],
     ['Inbox/web_clipper/README.md', 'Inbox/web_clipper/README.md'],
   ];

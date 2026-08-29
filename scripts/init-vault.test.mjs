@@ -143,16 +143,16 @@ describe('copyIfMissing', () => {
 });
 
 describe('runInit (integration)', () => {
-  test('empty vault: 10 dirs + 5 placeholders + 4 assets + CLAUDE.md created', async () => {
+  test('empty vault: 10 dirs + 4 placeholders + 5 assets + CLAUDE.md created', async () => {
     const vault = await makeVault('r1');
     const report = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
     assert.equal(report.exitCode, 0);
     assert.equal(report.counters.dirsCreated, 10);
     assert.equal(report.counters.dirsSkipped, 0);
-    assert.equal(report.counters.filesCopied, 4);
+    assert.equal(report.counters.filesCopied, 5);  // 4 原资产 + Index_Skeleton.md → Index.md
     assert.equal(report.counters.filesSkipped, 0);
-    assert.equal(report.counters.placeholdersCreated, 5);
-    assert.equal(report.counters.placeholdersSkipped, 0);
+    assert.equal(report.counters.placeholdersCreated, 4);  // Index.md 已被 assetMap 拷 → skip;Log.md + 3 个 gitkeep
+    assert.equal(report.counters.placeholdersSkipped, 1);  // Index.md
     assert.equal(report.claudeMd.status, 'created');
     assert.equal(report.counters.scriptsWritten, SCRIPT_FILES.length);  // 白名单脚本被全部拷贝/覆盖到 vault
     assert.equal(report.errors.length, 0);
@@ -169,12 +169,22 @@ describe('runInit (integration)', () => {
     assert.equal(report.exitCode, 0);
     assert.equal(report.counters.dirsCreated, 8);    // 10 - 2 已存在 (01_知识库 + 00_模板 都被预创建了)
     assert.equal(report.counters.dirsSkipped, 2);
-    assert.equal(report.counters.filesCopied, 3);    // 4 - 1 已存在 (读书笔记模板.md 已存在)
-    assert.equal(report.counters.filesSkipped, 1);
+    assert.equal(report.counters.filesCopied, 3);    // 5 - 2 已存在 (读书笔记模板.md + Index.md → Index_Skeleton.md 也被 copyIfMissing 跳过)
+    assert.equal(report.counters.filesSkipped, 2);
     assert.equal(report.counters.placeholdersCreated, 4); // 5 - 1 (Index.md 已存在)
     assert.equal(report.claudeMd.status, 'created');
     assert.equal(await readFile(join(vault, '00_模板/读书笔记模板.md'), 'utf8'), 'USER CONTENT');
     assert.equal(report.counters.scriptsWritten, SCRIPT_FILES.length);  // 脚本总是覆盖写,与资产不同
+  });
+
+  test('空 vault 跑 init 后 Index.md 来自 Index_Skeleton.md（含 sync-index 标记块）', async () => {
+    const vault = await makeVault('r_skel');
+    const report = await runInit({ vaultRoot: vault, pluginRoot: PLUGIN_ROOT });
+    assert.equal(report.exitCode, 0);
+    const idxContent = await readFile(join(vault, 'Index.md'), 'utf8');
+    assert.match(idxContent, /# 资料索引/);
+    assert.match(idxContent, /<!-- sync-index:begin v2 -->/);
+    assert.match(idxContent, /<!-- sync-index:end -->/);
   });
 
   test('non-existent vault: exitCode 2 + vault-not-found error', async () => {
@@ -212,8 +222,8 @@ describe('runInit (integration)', () => {
     assert.equal(r2.claudeMd.status, 'refreshed', 'second run should refresh (replace block in place), not skip or append');
     assert.equal(r2.counters.dirsCreated, 0);  // 10 个都已存在
     assert.equal(r2.counters.dirsSkipped, 10);
-    assert.equal(r2.counters.filesCopied, 0);  // 4 个都已存在
-    assert.equal(r2.counters.filesSkipped, 4);
+    assert.equal(r2.counters.filesCopied, 0);  // 5 个都已存在
+    assert.equal(r2.counters.filesSkipped, 5);
     assert.equal(r2.counters.placeholdersCreated, 0);  // 5 个都已存在
     assert.equal(r2.counters.placeholdersSkipped, 5);
     assert.equal(r2.counters.scriptsWritten, SCRIPT_FILES.length);  // 第二次也覆盖写所有白名单脚本
