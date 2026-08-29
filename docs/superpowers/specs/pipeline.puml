@@ -1,0 +1,183 @@
+@startuml pipeline
+' llm-wiki-plugin 文档生命周期 pipeline 泳道图
+' 5 个泳道 = 5 个 skill;泳道间的箭头表示数据流与触发关系
+' 渲染: plantuml pipeline.puml 或粘贴到 https://www.plantuml.com/plantuml
+
+skinparam backgroundColor #FAFAFA
+skinparam shadowing false
+skinparam swimlaneBorderColor #888
+skinparam swimlaneTitleFontSize 16
+skinparam noteFontSize 12
+skinparam activityFontSize 13
+skinparam arrowFontSize 12
+
+title llm-wiki-plugin 文档生命周期 pipeline\n
+
+|llm-wiki-plugin-init|
+start
+
+:用户首次触发\n「初始化 vault」;
+
+:SKILL 问 vault 路径\n(AskUserQuestion);
+
+:调 init-vault.mjs;
+
+note right
+  1. 建 14 个目录 + 5 个 md 占位
+  2. 拷贝 plugin 资产到 vault
+     (copyIfMissing 保留用户修改)
+  3. 注入 CLAUDE.md 模板
+     (begin/end 包裹,幂等)
+  4. 拷贝 4 个 CLI 脚本到 vault
+     (scripts/ 白名单,覆盖写)
+end note
+
+:vault 落地\n14 目录 + 5 md + scripts/;
+
+stop
+
+|obsidian-collacting|
+:用户把素材丢入\nInbox/{pdf,md,pptx,docx,xlsx,image};
+
+:触发「整理 / Inbox / office」;
+
+:扫描 Inbox 6 类源\n(递归);
+
+if (类型?) then (pdf)
+  :sync-pdf-notes.mjs\n生成空模板;
+elseif (md / web_clipper)
+  :手工 cp 读书笔记模板.md;
+elseif (pptx / docx / xlsx / image)
+  :convert-office.mjs\nanydoc / PaddleOCR 预转 md;
+  :cp 读书笔记模板.md;
+endif
+
+:归档到\n01_知识库/<主题>/;
+
+note right
+  主题匹配既有子目录 → mv
+  主题不匹配 → mkdir + mv
+  同名冲突 → 跳过并报告
+end note
+
+fork
+  :sub agent 并行写笔记\n(阶段 2,Created≥2 并发);
+  note right
+    4 段正文 + frontmatter tags
+    仅从标签词表 §2 枚举取值
+    词表更新建议(≤3 条,强信号)
+  end note
+fork again
+  :skip;
+end fork
+
+:sub agent 串行抽 entity/concept\n(阶段 3,避免 sources 数组覆盖);
+
+note right
+  任务 A 抽 entity
+  任务 B 抽 concept
+  任务 E 三档 dedup
+  任务 C 写/改 entity/concept 页
+    (reviewed:true 只 append)
+    (reviewed:false Edit 正文)
+  任务 D source 末尾加 Related Pages
+end note
+
+:append Index.md\n+ 倒序追加 Log.md;
+
+|knowledge-graph-sync|
+:用户触发\n「knowledge graph / 同步反向引用」;
+
+:扫 02_读书笔记/**\n找无 ## Related Pages 的存量笔记;
+
+:主对话直接抽取\nentity / concept;
+
+note right
+  与 obsidian-collacting 互补
+  obsidian-collacting 已处理的跳过
+  不读 PDF / 不写新笔记
+  不修改 frontmatter 字段
+  不启动 sub agent
+end note
+
+:写 / 追加 entity / concept 页\n(同 obsidian-collacting 阶段 3 规则);
+
+:source 笔记末尾追加\n## Related Pages 段;
+
+:append 倒序 Log.md;
+
+|llm-wiki-query|
+:用户问「查 wiki / 问个问题」;
+
+note right
+  显式触发词匹配
+  不做隐式激活
+end note
+
+if (qmd 已装?) then (是)
+  :qmd MCP status 健康检查;
+  if (collection 就绪?) then (是)
+    :qmd MCP query\n混合 BM25/vec + rerank;
+    :qmd MCP get\n深读 top 笔记;
+  else (否)
+    :降级到 Grep + Read;
+  endif
+else (否)
+  :降级到 Grep + Read;
+endif
+
+:用引用合成答案\n每条事实带 [[wiki 链接]];
+
+:主对话输出答案\n给用户(先回答,后归档);
+
+:LLM 自检 Q1-Q5\n(≥3 事实 / 跨 ≥2 source / 图表 / 追问 / 新连接);
+
+if (命中 ≥ 1?) then (是)
+  :写 03_问答区/<主题>/<slug>.md\n双 frontmatter + 4 段;
+  if (路径冲突?) then (是)
+    :Edit 追加 ## 续答 段;
+  else (否)
+    :新建笔记;
+  endif
+  :append Index.md\n+ 倒序追加 Log.md(含 召回方式);
+else (否)
+  :仅口头回答,不归档;
+endif
+
+|lint-wiki|
+:用户触发\n「lint / healthcheck / 扫一遍」;
+
+:scripts/lint-wiki.mjs\n扫 15 类问题 + 词表建议;
+
+note right
+  6 类 source(missing-meta / orphan / stale
+  / tag-drift / duplicate / contradictions)
+  3 类 entity(missing-aliases / tag-drift / name-clash)
+  3 类 concept(同上)
+  3 类跨目录(cross-dir-dup / sources-too-many / log-backlinks)
+  + Vocab Suggestions 词表补全建议节
+end note
+
+:输出报告\nscripts/_lint-report.md;
+
+note right
+  exit 0 = 无问题
+  exit 1 = 发现问题
+  exit 2 = 脚本异常
+  不阻塞主对话
+end note
+
+:主对话按优先级处理\n1.tag-drift → 2.Vocab → 3.clash → ...;
+
+:append 倒序 Log.md(诊断摘要);
+
+note right
+  5 skill 互相不调用
+  全部由主对话按需调度
+  同一时刻只有 1 个写 vault 的 skill 活跃
+  Log.md / Index.md 由各 skill 收尾时同步追加
+end note
+
+stop
+
+@enduml

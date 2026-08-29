@@ -145,6 +145,8 @@ plugin 的 5 类 markdown 笔记不是「LLM 凭空造出来的」——它们�
 
 karpathy 原文给 wiki 生命周期定义了三个动作:**Ingest / Query / Lint**。plugin 在这之上加了**两个补集**:**Init**(冷启动)+ **kg-sync**(存量反链补全),构成完整的 5 步 pipeline。
 
+**泳道图**:[`pipeline.puml`](pipeline.puml) — 5 个泳道 = 5 个 skill,渲染后可见各 skill 内部动作 + 跨 skill 数据流。
+
 ```
             ┌─────────────────────────────────────────────┐
             │      1. llm-wiki-plugin-init (cold start)   │
