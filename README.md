@@ -26,7 +26,6 @@ Obsidian 知识库的 5 个 Claude Code skill 包。
 
 | 工具 | 可选 | 用途 | 触发场景 |
 |---|---|---|---|
-| **[@tobilu/qmd](https://www.npmjs.com/package/@tobilu/qmd)** | ⚙️ | `llm-wiki-query` 的混合 BM25+向量+LLM 重排搜索引擎;未装时自动降级为 `Grep + Read`,小 vault 也够用 | 大 vault(笔记 > 500 篇) 或需要语义搜索时 |
 | **Templater plugin** | ⚙️ | Obsidian 端用 Templater 一键新建 `02_读书笔记/` 笔记;纯手动也行 | 想用快捷键新建笔记时 |
 | **Obsidian Web Clipper** | ⚙️ | 浏览器一键把网页存为 md 到 `Inbox/web_clipper/`,供 `obsidian-collacting` skill 批量归档 | 想自动收网页笔记时 |
 | **[@firecrawl/anydoc](https://github.com/firecrawl/anydoc)** | ⚙️ | `obsidian-collacting` 预转 pptx / docx / xlsx(Rust 写的本地转换器,GFM 风格);`npm i -g @firecrawl/anydoc` 或 `npx -y @firecrawl/anydoc`(脚本自动 fallback);**纯本地,无需 API key** | Inbox 里有 pptx/docx/xlsx 文件时 |
@@ -44,10 +43,7 @@ nvm install 22 && nvm use 22
 
 # 4. Claude Code → https://docs.claude.com/claude-code
 
-# 5. (可选) qmd — 装好后见下文"qmd 接入"
-npm i -g @tobilu/qmd
-
-# 6. (可选) paddleocr — `obsidian-collacting` 处理 Inbox 图片时需要
+# 5. (可选) paddleocr — `obsidian-collacting` 处理 Inbox 图片时需要
 #    推荐用 uv 装到 ~/.venv-ocr/(plugin 会自动探测到):
 uv venv ~/.venv-ocr
 source ~/.venv-ocr/bin/activate && uv pip install paddleocr paddlepaddle
@@ -95,7 +91,7 @@ git pull --ff-only
 | `knowledge-graph-sync` | knowledge graph / 同步反向引用 / 知识图谱同步 | 手动触发；只补存量 `02_读书笔记/` 的反向引用 `## Related Pages`，不读 PDF、不写正文 |
 | `lint-wiki` | lint / healthcheck / 检查 vault / 扫一遍笔记 / 跑 lint | 只读不写；扫 source/entity/concept 14 类健康问题到 `scripts/_lint-report.md` |
 | `obsidian-collacting` | 整理 / Inbox / web clipper / office / ppt / word / excel / 图片 | `Inbox/` 6 源（pdf / web_clipper md / pptx / docx / xlsx / png-jpg）→ 归档到 `01_知识库/` → 生成 `02_读书笔记/` 模板 → 写正文 → 抽 entity/concept；office 走 anydoc / 图片走 PaddleOCR（`scripts/convert-office.mjs` 预转 md）|
-| `llm-wiki-query` | 查 wiki / 问个问题 / 问一下 / query / 查 vault / 知识库里有没有 X / 我问个问题 | 显式触发；用 qmd MCP 召回 + 引用合成答案；好答案自动归档到 `03_问答区/` |
+| `llm-wiki-query` | 在知识库查一下 / 查一下知识库 / 知识库查一下 / 在 wiki 查一下 | 显式触发；朴素 Grep（按 vault 优先级 `02_读书笔记/ > 11_entities/ > 12_concepts/ > 01_知识库/ > 03_问答区/(可选)`）召回 + 引用合成答案；用户确认「归档」后写到 `03_问答区/` |
 
 ## 内含资产
 
@@ -157,34 +153,13 @@ node --test scripts/convert-office.test.mjs      # 11 cases
 
 详见 spec：[myself-marketplace 仓 spec](https://github.com/zhigangliu-bot/myself-marketplace/blob/main/docs/superpowers/specs/2026-08-23-llm-wiki-plugin-init-design.md)
 
-## 可选：qmd 接入（llm-wiki-query skill 的搜索引擎）
+## 关于 `llm-wiki-query` 的召回路径（朴素 Grep）
 
-`llm-wiki-query` skill 默认走 **qmd MCP server**（混合 BM25 + 向量搜索 + LLM 重排，全部本地）。未装 qmd 时自动降级为 LLM `Grep` + `Read`（小 vault 也够用）。
+`llm-wiki-query` skill 默认走 **朴素 Grep**（LLM 自己用 `grep -rl` 扫 vault + `Read` 深读），不依赖任何外部搜索引擎。
 
-**手动接入步骤**：
+**为什么不再走 qmd MCP：** 朴素 Grep + 多 anchor 召回对小 vault 够用（你的笔记规模还没到必须用 BM25/向量检索的程度），且零运行时依赖 / 零外部组件 / 零安装成本。未来若 vault 规模上去需要语义搜索，再起独立 skill 接入 qmd。
 
-```bash
-# 1. 装 qmd（需 Node ≥22 或 Bun ≥1.0）
-npm i -g @tobilu/qmd
-
-# 2. 在 vault 根目录添加 collection（每个 vault 一次）
-cd <vaultRoot>
-qmd collection add . --name my-vault
-qmd embed
-
-# 3. 在 plugin 仓根 `.mcp.json` 加 qmd 条目（plugin 默认 `.mcp.json` 在 .gitignore，敏感）
-{
-  "mcpServers": {
-    "qmd": { "command": "qmd", "args": ["mcp"] }
-  }
-}
-
-# 4. 重启 Claude Code 让 .mcp.json 生效
-```
-
-首次 `qmd embed` 对大 vault 可能耗时数分钟——README 不代理这一步，用户自己跑。
-
-详见 spec：[docs/superpowers/specs/2026-08-23-query-skill-design.md](docs/superpowers/specs/2026-08-23-query-skill-design.md)。
+详见 spec：[docs/superpowers/specs/2026-08-23-query-skill-design.md](docs/superpowers/specs/2026-08-23-query-skill-design.md)。**注意**：该 spec 写于 v2（含 qmd MCP 路径），归档保留供考古；当前 SKILL.md 实现以朴素 Grep 为准。
 
 ## License
 
