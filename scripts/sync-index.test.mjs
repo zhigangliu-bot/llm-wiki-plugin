@@ -36,7 +36,7 @@ import {
   parseFrontmatter,
   toPosix,
   isPathSafe,
-  runSync,
+  main,
 } from './sync-index.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -375,22 +375,42 @@ describe('CLI: --check', () => {
     assert.equal(r.stdout.trim(), '');
   });
 
-  test('#15 磁盘被手工改过 → exit 1 + diff', async () => {
+  test('#15 标记块内被手工改 → exit 1 + diff', async () => {
     await makeVault([
       { path: '02_读书笔记/AI/a.md', content: '---\n文章: A\ntags: [x]\n---\nA\n' },
     ]);
     await writeFile(join(tmpRoot, 'Index.md'), SKELETON, 'utf8');
 
     await spawnCli(['--all', '--write']);
-    // 手工污染
+    // 在标记块**内**注入污染行(spec §8.4:标记块外的污染应保留 → exit 0)
     const idxPath = join(tmpRoot, 'Index.md');
     const orig = await readFile(idxPath, 'utf8');
-    await writeFile(idxPath, orig + '\n手工污染行\n', 'utf8');
+    const polluted = orig
+      .replace(SYNC_BEGIN, `${SYNC_BEGIN}\n手工污染行`)
+      .replace(SYNC_END, '');
+    await writeFile(idxPath, polluted + SYNC_END + '\n', 'utf8');
 
     const r = await spawnCli(['--check']);
     assert.equal(r.status, 1);
     assert.ok(r.stdout.includes('+') || r.stdout.includes('-'),
       `应输出 diff，实际 stdout: ${r.stdout}`);
+  });
+
+  test('#15b 标记块外的用户手工段 → exit 0（保留语义）', async () => {
+    await makeVault([
+      { path: '02_读书笔记/AI/a.md', content: '---\n文章: A\ntags: [x]\n---\nA\n' },
+    ]);
+    await writeFile(join(tmpRoot, 'Index.md'), SKELETON, 'utf8');
+
+    await spawnCli(['--all', '--write']);
+    const idxPath = join(tmpRoot, 'Index.md');
+    const orig = await readFile(idxPath, 'utf8');
+    // 在 sync-index:end 之后追加 ## Favorites
+    await writeFile(idxPath, orig + '\n## Favorites\n\n- [[foo]]\n', 'utf8');
+
+    const r = await spawnCli(['--check']);
+    // 标记块外的内容脚本不碰 → 应保持一致 → exit 0
+    assert.equal(r.status, 0);
   });
 });
 
@@ -570,9 +590,9 @@ ${SYNC_END}
 });
 
 describe('健壮性', () => {
-  test('#16 frontmatter 解析失败 → warn 到 stderr, 跳过该文件', async () => {
+  test('#16 无 frontmatter → 用文件名作为 title 兜底，不 warn', async () => {
     await makeVault([
-      { path: '02_读书笔记/AI/broken.md',
+      { path: '02_读书笔记/AI/no-fm.md',
         content: 'no frontmatter here\njust plain text\n' },
       { path: '02_读书笔记/AI/valid.md',
         content: '---\n文章: Valid\ntags: [x]\n---\n正文\n' },
@@ -580,15 +600,14 @@ describe('健壮性', () => {
     await writeFile(join(tmpRoot, 'Index.md'), SKELETON, 'utf8');
 
     const r = await spawnCli(['--all', '--write']);
-    // 应该 exit 0，broken 文件被跳过
     assert.equal(r.status, 0, `stderr: ${r.stderr}`);
     const idx = await readFile(join(tmpRoot, 'Index.md'), 'utf8');
     // Valid 应出现
     assert.match(idx, /Valid/);
-    // broken 不应出现
-    assert.doesNotMatch(idx, /broken\.md/);
-    // stderr 应有 warn
-    assert.match(r.stderr, /warn/i);
+    // no-fm 应出现（用文件名作为 title 兜底）
+    assert.match(idx, /\| no-fm \|/);
+    // 不应有 warn（这是正常情况）
+    assert.doesNotMatch(r.stderr, /warn.*no-fm/);
   });
 
   test('#17 路径越界（含 ..）→ refuse, exit 2', async () => {
@@ -617,7 +636,7 @@ describe('健壮性', () => {
     // 幂等 → 内容完全相同
     assert.equal(after, before);
     // 文件可读且完整
-    assert.match(after, /SYNC_BEGIN/);
+    assert.match(after, /sync-index:begin/);
   });
 });
 
