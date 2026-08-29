@@ -4,7 +4,7 @@
  * Run with: node --test scripts/qmd-detect.test.mjs
  *
  * 策略:
- *   1. 通过 DI 注入 mock fileSystem + mock execFn + mock mtimeFn,
+ *   1. 预留 DI 注入 seam (Task 3 补 mock fileSystem / execFn / mtimeFn),
  *      不 mutate 任何内置模块 namespace
  *      (Node 22 冻结 ESM namespace, fs = X 会抛)
  *   2. 通过 tmp vault 目录测真实路径行为;纯函数测逻辑.
@@ -12,15 +12,15 @@
  */
 import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
   computeTier,
   computeEffectivePath,
   filterMdFiles,
-  THRESHOLDS,
 } from './qmd-detect.mjs';
 
 describe('qmd-detect THRESHOLDS', () => {
@@ -85,8 +85,9 @@ describe('qmd-detect filterMdFiles', () => {
 });
 
 describe('qmd-detect computeSuggestionFlags', () => {
-  // 用 import 增加 computeSuggestionFlags
-  test('should_suggest_qmd_install: medium + qmd 未装 + 引导未跳过', async (t) => {
+  // computeSuggestionFlags / safeFallback / readStateFile 在 Task 2 才导出,
+  // 暂用动态 import;Task 3 后可改为静态 import
+  test('should_suggest_qmd_install: medium + qmd 未装 + 引导未跳过', async () => {
     const mod = await import('./qmd-detect.mjs');
     const flags = mod.computeSuggestionFlags({
       tier: 'medium',
@@ -96,7 +97,7 @@ describe('qmd-detect computeSuggestionFlags', () => {
     });
     assert.equal(flags.shouldSuggest, true);
   });
-  test('should_suggest_qmd_install: 引导跳过 (state.引导_skipped_at 非空) 后 = false', async (t) => {
+  test('should_suggest_qmd_install: 引导跳过 (state.引导_skipped_at 非空) 后 = false', async () => {
     const mod = await import('./qmd-detect.mjs');
     const flags = mod.computeSuggestionFlags({
       tier: 'medium',
@@ -106,7 +107,7 @@ describe('qmd-detect computeSuggestionFlags', () => {
     });
     assert.equal(flags.shouldSuggest, false);
   });
-  test('should_warn_grep_unstable: large + qmd 未装 + override !== grep = true', async (t) => {
+  test('should_warn_grep_unstable: large + qmd 未装 + override !== grep = true', async () => {
     const mod = await import('./qmd-detect.mjs');
     const flags = mod.computeSuggestionFlags({
       tier: 'large',
@@ -116,7 +117,7 @@ describe('qmd-detect computeSuggestionFlags', () => {
     });
     assert.equal(flags.shouldWarn, true);
   });
-  test('should_warn_grep_unstable: override=grep 后 = false', async (t) => {
+  test('should_warn_grep_unstable: override=grep 后 = false', async () => {
     const mod = await import('./qmd-detect.mjs');
     const flags = mod.computeSuggestionFlags({
       tier: 'large',
@@ -126,7 +127,7 @@ describe('qmd-detect computeSuggestionFlags', () => {
     });
     assert.equal(flags.shouldWarn, false);
   });
-  test('should_warn_grep_unstable: qmd 已装 = false', async (t) => {
+  test('should_warn_grep_unstable: qmd 已装 = false', async () => {
     const mod = await import('./qmd-detect.mjs');
     const flags = mod.computeSuggestionFlags({
       tier: 'large',
@@ -139,7 +140,7 @@ describe('qmd-detect computeSuggestionFlags', () => {
 });
 
 describe('qmd-detect safeFallback', () => {
-  test('safeFallback() 返回兜底 JSON: tier=small, effective_path=grep', async (t) => {
+  test('safeFallback() 返回兜底 JSON: tier=small, effective_path=grep', async () => {
     const mod = await import('./qmd-detect.mjs');
     const fallback = mod.safeFallback();
     assert.equal(fallback.tier, 'small');
@@ -156,7 +157,7 @@ describe('qmd-detect state 容错', () => {
     await rm(tmpVault, { recursive: true, force: true });
   });
 
-  test('state.json 缺字段 / 错类型不抛, 走 auto 决策', async (t) => {
+  test('state.json 缺字段 / 错类型不抛, 走 auto 决策', async () => {
     const mod = await import('./qmd-detect.mjs');
     // 写坏的 state.json
     await writeFile(join(tmpVault, '.llm-wiki-query-state.json'), '{"path_override": 123}');
@@ -164,15 +165,15 @@ describe('qmd-detect state 容错', () => {
     // path_override 错类型 → 忽略, fallback auto
     assert.equal(state.path_override, undefined);
   });
-  test('state.json path_override 非法字符串 → 忽略, fallback auto', async (t) => {
+  test('state.json path_override 非法字符串 → 忽略, fallback auto', async () => {
     const mod = await import('./qmd-detect.mjs');
     await writeFile(join(tmpVault, '.llm-wiki-query-state.json'), '{"path_override": "banana"}');
     const state = await mod.readStateFile(tmpVault);
     assert.equal(state.path_override, 'banana'); // 字段读出,但 computeEffectivePath 容错
     // computeEffectivePath 处理后会忽略 'banana'
-    assert.equal(computeEffectivePath(state, 'medium', true), 'qmd');
+    assert.equal(computeEffectivePath(state, 'medium', true), 'qmd', `path_override=${state.path_override}`);
   });
-  test('state.json 不存在时返回空对象不抛', async (t) => {
+  test('state.json 不存在时返回空对象不抛', async () => {
     const mod = await import('./qmd-detect.mjs');
     const state = await mod.readStateFile(tmpVault);
     assert.deepEqual(state, {});
@@ -182,13 +183,10 @@ describe('qmd-detect state 容错', () => {
 describe('qmd-detect main() 退出码', () => {
   let tmpVault;
   let ORIGINAL_PLUGIN_ROOT;
-  let stdoutChunks;
   beforeEach(async () => {
     tmpVault = await mkdtemp(join(tmpdir(), 'qmd-detect-test-'));
     ORIGINAL_PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT;
     process.env.CLAUDE_PLUGIN_ROOT = tmpVault;
-    stdoutChunks = [];
-    process.stdout.write = (chunk) => { stdoutChunks.push(chunk.toString()); return true; };
   });
   afterEach(async () => {
     if (ORIGINAL_PLUGIN_ROOT === undefined) delete process.env.CLAUDE_PLUGIN_ROOT;
@@ -196,17 +194,17 @@ describe('qmd-detect main() 退出码', () => {
     await rm(tmpVault, { recursive: true, force: true });
   });
 
-  test('vault 不存在时 main 仍 exit 0, 输出 safe fallback JSON', async (t) => {
-    const { spawn } = await import('node:child_process');
-    const result = await new Promise((resolve) => {
-      const p = spawn('node', [join(process.cwd(), 'scripts/qmd-detect.mjs'),
-        `--vault=${tmpVault}/nonexistent`], { env: process.env });
-      let out = '';
-      p.stdout.on('data', (d) => out += d);
-      p.on('close', (code) => resolve({ code, out }));
+  test('vault 不存在时 main 仍 exit 0, 输出 safe fallback JSON', async () => {
+    const { spawnSync } = await import('node:child_process');
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const SCRIPT_PATH = join(__dirname, 'qmd-detect.mjs');
+    const VAULT_ARG = `--vault=${join(tmpVault, 'nonexistent')}`;
+    const result = spawnSync(process.execPath, [SCRIPT_PATH, VAULT_ARG], {
+      timeout: 5000,
+      encoding: 'utf8',
     });
-    assert.equal(result.code, 0);
-    assert.match(result.out, /"tier":\s*"small"/);
-    assert.match(result.out, /"effective_path":\s*"grep"/);
+    assert.equal(result.status, 0, `stderr: ${result.stderr}`);
+    assert.match(result.stdout, /"tier":\s*"small"/);
+    assert.match(result.stdout, /"effective_path":\s*"grep"/);
   });
 });
