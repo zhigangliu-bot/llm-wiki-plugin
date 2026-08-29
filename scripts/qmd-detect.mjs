@@ -16,6 +16,7 @@ import { readFile, writeFile, stat, readdir } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { join, relative } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const execFileP = promisify(execFile);
 
@@ -30,6 +31,12 @@ const EXCLUDED_PREFIXES = [
   '.git/',
   'temp/',
 ];
+
+/** qmd 探针超时 (ms). */
+const QMD_PROBE_TIMEOUT_MS = 5000;
+
+/** vault mtime 比对容差 (ms). Windows NTFS mtime 粒度粗, 给 1ms 余量. */
+const MTIME_TOLERANCE_MS = 1;
 
 /**
  * 根据 vault_size 算 tier.
@@ -146,7 +153,7 @@ export async function readStateFile(vaultRoot, { readFile: readFn = readFile } =
  */
 export async function detectQmdAvailable(execFn = execFileP) {
   try {
-    await execFn('qmd', ['collection', 'list'], { timeout: 5000 });
+    await execFn('qmd', ['collection', 'list'], { timeout: QMD_PROBE_TIMEOUT_MS });
     return true;
   } catch {
     return false;
@@ -177,7 +184,7 @@ export async function writeCacheFile(vaultRoot, cache, { writeFile: writeFn = wr
   try {
     await writeFn(join(vaultRoot, '.llm-wiki-cache.json'), JSON.stringify(cache, null, 2), 'utf8');
   } catch (e) {
-    console.warn(`qmd-detect: cache write failed: ${e.message?.split('\n')[0] ?? 'unknown'}`);
+    console.warn(`qmd-detect: cache write failed for ${vaultRoot}: ${e.message?.split('\n')[0] ?? 'unknown'}`);
   }
 }
 
@@ -198,11 +205,10 @@ async function realStatMtimeMs(p) {
 /**
  * 算 vault 大小: 数 .md 数, 应用 filterMdFiles.
  * @param {string} vaultRoot
- * @param {{listMd?: Function, nowMs?: Function}} [opts]
+ * @param {{listMd?: Function}} [opts]
  *   listMd: (vaultRoot) => Promise<string[]> 返回 vault 内所有 .md 相对路径
- *   nowMs: () => number 返回当前时间 (ms)
  */
-export async function computeVaultSize(vaultRoot, { listMd = realListMd, nowMs = Date.now } = {}) {
+export async function computeVaultSize(vaultRoot, { listMd = realListMd } = {}) {
   const all = await listMd(vaultRoot);
   const filtered = filterMdFiles(all);
   return filtered.length;
@@ -258,7 +264,7 @@ export async function runDetect({
     // 2. 比 mtime, 决定是否重数 vault
     const currentMtimeMs = await statMtimeMs(vaultRoot);
     const cachedMtimeMs = typeof cache.vault_mtime_ms === 'number' ? cache.vault_mtime_ms : null;
-    const mtimeMatches = cachedMtimeMs !== null && Math.abs(currentMtimeMs - cachedMtimeMs) < 1;
+    const mtimeMatches = cachedMtimeMs !== null && Math.abs(currentMtimeMs - cachedMtimeMs) < MTIME_TOLERANCE_MS;
 
     let vaultSize;
     let cacheAgeSeconds;
@@ -266,7 +272,7 @@ export async function runDetect({
       vaultSize = cache.vault_size;
       cacheAgeSeconds = Math.max(0, Math.floor((nowMs() - (cache.last_run_ms ?? nowMs())) / 1000));
     } else {
-      vaultSize = await computeVaultSize(vaultRoot, { listMd, nowMs });
+      vaultSize = await computeVaultSize(vaultRoot, { listMd });
       cacheAgeSeconds = 0;
     }
 
@@ -317,7 +323,15 @@ export async function runDetect({
 }
 
 // CLI 入口
-if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
+const isMain = (() => {
+  try {
+    return import.meta.url === pathToFileURL(process.argv[1]).href;
+  } catch {
+    return false;
+  }
+})();
+
+if (isMain) {
   const args = process.argv.slice(2);
   const vaultArg = args.find((a) => a.startsWith('--vault='));
   const vaultRoot = vaultArg ? vaultArg.slice('--vault='.length) : process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
