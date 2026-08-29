@@ -12,8 +12,12 @@
  *       测试时传 mock, 绕开 Node 22 内置模块 namespace 冻结问题.
  */
 
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readFile, writeFile, stat, readdir } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { join, relative } from 'node:path';
+
+const execFileP = promisify(execFile);
 
 /** vault 大小阈值. 改时单文件改. */
 export const THRESHOLDS = { small: 500, large: 3000 };
@@ -133,4 +137,196 @@ export async function readStateFile(vaultRoot, { readFile: readFn = readFile } =
   } catch {
     return {};
   }
+}
+
+/**
+ * 探 qmd 是否可用. `qmd collection list` 进程, 5s timeout, exit 0 = true.
+ * @param {Function} [execFn] - promisified execFile (DI)
+ * @returns {Promise<boolean>}
+ */
+export async function detectQmdAvailable(execFn = execFileP) {
+  try {
+    await execFn('qmd', ['collection', 'list'], { timeout: 5000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 读 .llm-wiki-cache.json. 缺省 = 空对象.
+ * @param {string} vaultRoot
+ * @param {{readFile?: Function}} [opts]
+ */
+export async function readCacheFile(vaultRoot, { readFile: readFn = readFile } = {}) {
+  try {
+    const raw = await readFn(join(vaultRoot, '.llm-wiki-cache.json'), 'utf8');
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * 写 .llm-wiki-cache.json. 失败不抛 (warn to stderr).
+ * @param {string} vaultRoot
+ * @param {object} cache
+ * @param {{writeFile?: Function}} [opts]
+ */
+export async function writeCacheFile(vaultRoot, cache, { writeFile: writeFn = writeFile } = {}) {
+  try {
+    await writeFn(join(vaultRoot, '.llm-wiki-cache.json'), JSON.stringify(cache, null, 2), 'utf8');
+  } catch (e) {
+    console.warn(`qmd-detect: cache write failed: ${e.message?.split('\n')[0] ?? 'unknown'}`);
+  }
+}
+
+/**
+ * 拿 vault mtime. DI 注入.
+ * @param {string} vaultRoot
+ * @param {{statMtimeMs?: Function}} [opts] - 返回 Number (ms), DI 注入测试
+ */
+export async function getVaultMtimeMs(vaultRoot, { statMtimeMs = realStatMtimeMs } = {}) {
+  return statMtimeMs(vaultRoot);
+}
+
+async function realStatMtimeMs(p) {
+  const s = await stat(p);
+  return s.mtimeMs;
+}
+
+/**
+ * 算 vault 大小: 数 .md 数, 应用 filterMdFiles.
+ * @param {string} vaultRoot
+ * @param {{listMd?: Function, nowMs?: Function}} [opts]
+ *   listMd: (vaultRoot) => Promise<string[]> 返回 vault 内所有 .md 相对路径
+ *   nowMs: () => number 返回当前时间 (ms)
+ */
+export async function computeVaultSize(vaultRoot, { listMd = realListMd, nowMs = Date.now } = {}) {
+  const all = await listMd(vaultRoot);
+  const filtered = filterMdFiles(all);
+  return filtered.length;
+}
+
+// realListMd: 用 fs walk. 跨平台用 node:fs.readdir recurse.
+async function realListMd(vaultRoot) {
+  /** @type {string[]} */
+  const results = [];
+  async function walk(dir) {
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return; // 目录不存在 / 权限, 跳过
+    }
+    for (const e of entries) {
+      const full = join(dir, e.name);
+      if (e.isDirectory()) {
+        await walk(full);
+      } else if (e.isFile() && e.name.endsWith('.md')) {
+        results.push(relative(vaultRoot, full).replace(/\\/g, '/'));
+      }
+    }
+  }
+  await walk(vaultRoot);
+  return results;
+}
+
+/**
+ * 主入口. DI 友好: 所有外部依赖通过 opts 注入.
+ * @param {object} [opts]
+ * @param {string} opts.vaultRoot - 必填, vault 根路径
+ * @param {Function} [opts.execFn] - promisified execFile (DI), 默认 execFileP
+ * @param {Function} [opts.nowMs] - () => ms, DI
+ * @param {Function} [opts.stdoutWrite] - (chunk) => bool, DI 默认 console.log
+ */
+export async function runDetect({
+  vaultRoot,
+  execFn = execFileP,
+  nowMs = Date.now,
+  stdoutWrite = console.log,
+  readFile: readFn = readFile,
+  writeFile: writeFn = writeFile,
+  statMtimeMs = realStatMtimeMs,
+  listMd = realListMd,
+} = {}) {
+  try {
+    // 1. 读 cache + state
+    const cache = await readCacheFile(vaultRoot, { readFile: readFn });
+    const state = await readStateFile(vaultRoot, { readFile: readFn });
+
+    // 2. 比 mtime, 决定是否重数 vault
+    const currentMtimeMs = await statMtimeMs(vaultRoot);
+    const cachedMtimeMs = typeof cache.vault_mtime_ms === 'number' ? cache.vault_mtime_ms : null;
+    const mtimeMatches = cachedMtimeMs !== null && Math.abs(currentMtimeMs - cachedMtimeMs) < 1;
+
+    let vaultSize;
+    let cacheAgeSeconds;
+    if (mtimeMatches && typeof cache.vault_size === 'number') {
+      vaultSize = cache.vault_size;
+      cacheAgeSeconds = Math.max(0, Math.floor((nowMs() - (cache.last_run_ms ?? nowMs())) / 1000));
+    } else {
+      vaultSize = await computeVaultSize(vaultRoot, { listMd, nowMs });
+      cacheAgeSeconds = 0;
+    }
+
+    // 3. 探 qmd
+    const qmdAvailable = await detectQmdAvailable(execFn);
+
+    // 4. 算 tier + effective_path + suggestion flags
+    const tier = computeTier(vaultSize);
+    const effectivePath = computeEffectivePath(state, tier, qmdAvailable);
+    const override = state.path_override ?? null;
+    const stateSkippedAt = state['引导_skipped_at'] ?? null;
+    const { shouldSuggest, shouldWarn } = computeSuggestionFlags({
+      tier, qmdAvailable, stateSkippedAt, override,
+    });
+
+    // 5. 写 cache
+    const nowMsValue = nowMs();
+    await writeCacheFile(vaultRoot, {
+      vault_mtime_ms: currentMtimeMs,
+      vault_size: vaultSize,
+      qmd_available: qmdAvailable,
+      last_run_ms: nowMsValue,
+      tier,
+      effective_path: effectivePath,
+    }, { writeFile: writeFn });
+
+    // 6. stdout 输出 system context
+    const output = {
+      tier,
+      effective_path: effectivePath,
+      qmd_available: qmdAvailable,
+      vault_size: vaultSize,
+      cache_age_seconds: cacheAgeSeconds,
+      vault_mtime_iso: new Date(currentMtimeMs).toISOString(),
+      state_override: override,
+      should_suggest_qmd_install: shouldSuggest,
+      should_warn_grep_unstable: shouldWarn,
+    };
+    stdoutWrite(`<system-context>\nllm-wiki-query path selection:\n  tier: ${tier} (vault_size: ${vaultSize} .md files)\n  effective_path: ${effectivePath}\n  qmd_available: ${qmdAvailable}\n  state_override: ${override ?? 'null'}\n  should_suggest_qmd_install: ${shouldSuggest}\n  should_warn_grep_unstable: ${shouldWarn}\n</system-context>`);
+
+    return output;
+  } catch (e) {
+    console.warn(`qmd-detect: unexpected error: ${e.message?.split('\n')[0] ?? 'unknown'}, falling back`);
+    const fallback = safeFallback();
+    stdoutWrite(`<system-context>\nllm-wiki-query path selection: SAFE FALLBACK\n  tier: ${fallback.tier}\n  effective_path: ${fallback.effective_path}\n</system-context>`);
+    return fallback;
+  }
+}
+
+// CLI 入口
+if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
+  const args = process.argv.slice(2);
+  const vaultArg = args.find((a) => a.startsWith('--vault='));
+  const vaultRoot = vaultArg ? vaultArg.slice('--vault='.length) : process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+
+  runDetect({ vaultRoot })
+    .then((output) => {
+      // 输出 JSON 供下游 (测试 / 其他 hook) 解析
+      console.log(JSON.stringify(output));
+      process.exit(0);
+    })
+    .catch(() => process.exit(0)); // 永远 exit 0, hook 不阻塞
 }
