@@ -1,83 +1,70 @@
-# Index.md资料索引规范
+# Index.md 资料索引规范（v1 — 已弃用）
 
-> 本文件是仓库根 `Index.md` 的唯一规范来源。LLM 优先读此区进行路由；新建笔记由 `obsidian-collacting` / `llm-wiki-query` 在同次 commit 内 append 索引条目。
->
-> 关联：本规范是从 `10_schema/config.md §1 §3 §12.5` 迁出的单一权威源。config.md 中关于 Index 的零星引用已指回本文件。
+> **⚠️ v1 已弃用（2026-08-29）**。新规则见 `docs/superpowers/specs/spec-index-v2.md`
+> （plugin 仓内的单一权威源；本文件仅保留给旧 vault 用户对照）。维护方式也变：LLM
+> **不再手写** Index.md 行——由 `scripts/sync-index.mjs` 按 `<!-- sync-index:begin v2 -->`
+> 标记块原子重写。
 
 ---
 
-## 1. 文件定位
+## v1 → v2 主要差异（迁移须知）
+
+| 维度 | v1（本文档旧版） | v2（spec-index-v2.md） |
+|---|---|---|
+| 维护者 | LLM 手写 append | `node scripts/sync-index.mjs --all --write` 脚本维护 |
+| 路由范围 | `02_读书笔记/` + `03_问答区/` | + `11_entities/` + `12_concepts/`（4 列，Entities/Concepts 固定末尾） |
+| 关键概念列 | "正文实际出现的标准名词" 自由文本 | `concepts:` 字段优先，否则 `tags:` fallback，截断 8 个 |
+| 包裹方式 | 无（直接表格） | `<!-- sync-index:begin v2 -->` ... `<!-- sync-index:end -->` 标记块 |
+| 健康检查 | 无 | `node scripts/lint-wiki.mjs` 报 `index-missing` / `index-ghost` |
+
+## 迁移步骤
+
+1. 在 vault 根手动重命名为（**不要**自己改 v1 表格内容）：
+   ```bash
+   cd <vaultRoot>
+   mv Index.md Index.md.v1.bak
+   ```
+2. 跑 `node scripts/init-vault.mjs <vaultRoot>`（v2 起 init 会注入 `00_模板/Index_Skeleton.md`
+   作为新 `Index.md` 骨架）。
+3. 跑 `node scripts/sync-index.mjs --all --write` 全量重建 v2 表格。
+4. 跑 `node scripts/lint-wiki.mjs` 验收——若 `index-ghost` 报 `Index.md.v1.bak` 是因为旧表
+   wiki-link 在新表找不到（正常，删除 `.bak` 即可）。
+
+## v1 旧规范存档
+
+> 以下仅为历史存档；不再有约束力。
+
+### 文件定位
 
 - `Index.md` 是路由表，**不**是知识图谱节点
 - 路由目标：`02_读书笔记/<主题>/<厂商?>/<name>.md` 与 `03_问答区/<主题>/<slug>.md`
 - 由 `obsidian-collacting` / `llm-wiki-query` 维护；其他 skill 只读
 
----
-
-## 2. 路径格式（硬约束）
+### 路径格式（硬约束）
 
 - **必须**使用 Obsidian wiki-link：`[[02_读书笔记/...md]]`
-- **禁止**用 markdown link：`[`<path></path>`](<url>)`（URL 含空格 / `&` / 特殊字符时 Obsidian 解析失败、点击无反应）
-- **禁止**用反引号纯文本：`` `<path>` ``（LLM 看到反引号路径无 click 入口）
-- 文件名带空格 / `&` / 中文时 wiki-link 鲁棒，照写不转义
+- **禁止**用 markdown link `[`<path>`](url)`（URL 含空格 / `&` / 特殊字符时 Obsidian 解析失败）
+- **禁止**用反引号纯文本 `` `<path>` ``（LLM 看到反引号路径无 click 入口）
 
----
+### v1 表格结构（4 列：标题 / 分类 / 关键概念 / 路径）
 
-## 3. 表格结构
+| 列       | 格式                                          |
+| -------- | --------------------------------------------- |
+| 标题     | 用 `文章:` frontmatter 字段值                |
+| 分类     | 与 `02_读书笔记/<主题>/<厂商?>/` 路径对齐   |
+| 关键概念 | 3-8 个小写 slug（自由文本，已废止）            |
+| 路径     | wiki-link，参见上文                            |
 
-| 列       | 格式                                          | 说明                                                                          |
-| -------- | --------------------------------------------- | ----------------------------------------------------------------------------- |
-| 标题     | `<文章标题>`                                | 用`文章:` frontmatter 字段值                                                |
-| 分类     | `<主题>` 或 `<主题>/<厂商>`               | 与`02_读书笔记/<主题>/<厂商?>/` 路径对齐                                    |
-| 关键概念 | `概念 1 / 概念 2 / ...`（3-8 个，逗号分隔） | 用页面正文实际出现的标准名词（`v-ecu` / `autosar` / `sil` 等小写 slug） |
-| 路径     | `[[02_读书笔记/<主题>/<厂商?>/<name>.md]]`  | wiki-link，参见 §2                                                           |
+### v1 触发时机（白名单）
 
----
+- `obsidian-collacting` 在 `02_读书笔记/` 新建笔记 → append
+- `llm-wiki-query` 在 `03_问答区/` 新建问答笔记 → append
+- 其他场景（修改既有笔记 / 单纯改 SKILL.md / lint 报告）→ 不触发
 
-## 4. 排序规则
+### v1 追加协议（已废止）
 
-- 默认按**分类字母序**；同一分类内按**源文件名**排序
-- 新增条目 append 到对应分类底部即可（同次 commit 内由 LLM 一次性重排或保留 append-only 均可）
+- 同次会话内 append；不在 Log 之后追补
+- 按 §排序规则插入
+- 追加失败：本次 commit **不允许**跳过 Index.md append
 
----
-
-## 5. 触发时机（白名单）
-
-下列动作**触发** `Index.md` append：
-
-- `obsidian-collacting` 在 `02_读书笔记/` 新建笔记（阶段 3 笔记填充完成 → 同次 commit 内 append）
-- `llm-wiki-query` 在 `03_问答区/` 新建问答笔记（Q 命中触发归档时 append）
-
-下列动作**不触发** `Index.md` 更新：
-
-- 单纯修改 4 skill 自身的 `SKILL.md`
-- `scripts/*.mjs` / `scripts/_lint-report.md` 等脚本 / 报告改动
-- `Index.md` 自身更新（D4 产物，不自引用）
-- 人工行为（手翻 `状态:` false→true、纯文档查阅）
-- `llm-wiki-query` 未触发归档（无 Q 命中、仅口头回答）
-- **修改既有笔记**（路径不变、语义未改）——路径与分类已存在，索引条目仍准确
-
----
-
-## 6. 追加协议
-
-- 追加时机：obsidian-collacting 阶段 3 / llm-wiki-query 新建笔记后**同次会话**内 append；不在 Log 之后追补
-- 追加位置：按 §4 排序规则插入（同类底部 / 新类按字母序）
-- 追加失败处理：本次 commit **不允许**跳过 Index.md append（与笔记同 commit 视为强制步骤）
-- `Log.md` 不写"Index.md 追加"作为独立条目（见 `Log.md §4`，属于 D4 产物不另写 Log）
-
----
-
-## 7. 骨架示例
-
-```markdown
-# 资料索引
-
-> LLM 优先读此区。本表路由到 `02_读书笔记/` 的 source 笔记（按主题归档）。新建笔记由 obsidian-collacting / llm-wiki-query 在同次 commit 内 append 索引条目。
-> 路径列统一使用 Obsidian wiki-link 格式 `[[02_读书笔记/...md]]`，**不要**用 markdown link `[`<path>`](url)` 或反引号纯文本（markdown link URL 含空格 / `&` / 特殊字符时 Obsidian 解析失败、点击无反应）。
-
-| 标题     | 分类           | 关键概念                       | 路径                                       |
-| -------- | -------------- | ------------------------------ | ------------------------------------------ |
-| <标题>   | <主题>         | <概念 1> / <概念 2> / <概念 3> | [[02_读书笔记/<主题>/<name>.md]]            |
-| <标题>   | <主题>/<厂商>  | <概念 1> / <概念 2> / <概念 3> | [[02_读书笔记/<主题>/<厂商>/<name>.md]]     |
-```
+> v1 后续维护请直接读 [spec-index-v2.md](../../docs/superpowers/specs/spec-index-v2.md)。
