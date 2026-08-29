@@ -338,8 +338,10 @@ if (isMain) {
 
   runDetect({ vaultRoot })
     .then((output) => {
-      // 输出 JSON 供下游 (测试 / 其他 hook) 解析
-      console.log(JSON.stringify(output));
+      // 输出已完成:runDetect() 内部已通过 stdoutWrite 写出 <system-context>...</system-context> 块
+      // spec §3.3 唯一契约是 system-context 块,不要再额外 console.log(JSON.stringify(output))
+      // (那行会把 JSON 拼到 </system-context> 后,污染 LLM 读到的 system context)
+      void output; // 保留返回值供 hook 调试用,但不进 stdout
       process.exit(0);
     })
     .catch(() => process.exit(0)); // 永远 exit 0, hook 不阻塞

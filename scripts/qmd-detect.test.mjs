@@ -194,7 +194,7 @@ describe('qmd-detect main() 退出码', () => {
     await rm(tmpVault, { recursive: true, force: true });
   });
 
-  test('vault 不存在时 main 仍 exit 0, 输出 safe fallback JSON', async () => {
+  test('vault 不存在时 main 仍 exit 0, 输出 safe fallback system-context 块', async () => {
     const { spawnSync } = await import('node:child_process');
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const SCRIPT_PATH = join(__dirname, 'qmd-detect.mjs');
@@ -204,7 +204,12 @@ describe('qmd-detect main() 退出码', () => {
       encoding: 'utf8',
     });
     assert.equal(result.status, 0, `stderr: ${result.stderr}`);
-    assert.match(result.stdout, /"tier":\s*"small"/);
-    assert.match(result.stdout, /"effective_path":\s*"grep"/);
+    // spec §3.3 唯一契约: stdout 只有 <system-context>...</system-context> 块
+    assert.match(result.stdout, /<system-context>[\s\S]*?<\/system-context>/);
+    assert.match(result.stdout, /SAFE FALLBACK/);
+    assert.match(result.stdout, /tier: small/);
+    assert.match(result.stdout, /effective_path: grep/);
+    // 不应再额外 JSON.stringify 输出 (fix B: spec §3.3 唯一契约是 system-context 块)
+    assert.doesNotMatch(result.stdout, /"tier":\s*"small"/);
   });
 });
