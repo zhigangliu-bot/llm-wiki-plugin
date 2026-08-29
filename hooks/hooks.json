@@ -1,5 +1,5 @@
 {
-  "description": "Auto-update llm-wiki-plugin from GitHub on session start",
+  "description": "Auto-update llm-wiki-plugin + detect qmd path on session start",
   "hooks": {
     "SessionStart": [
       {
@@ -8,6 +8,11 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/check-update.mjs\"",
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/qmd-detect.mjs\" --vault=\"${CLAUDE_PROJECT_DIR}\" 2>/dev/null",
             "async": true
           }
         ]
