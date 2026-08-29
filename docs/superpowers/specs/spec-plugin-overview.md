@@ -49,7 +49,7 @@ karpathy 原文是「思路文件」,刻意保持抽象。plugin 在它之上加
 | **SKILL.md 文本流 + 脚本纯 IO 分离** | 所有 mkdir / cp / 拷贝脚本进 `scripts/*.mjs`(可单测、可 mock),SKILL.md 只负责 LLM 流程编排 |
 | **目录命名保留中文** | `01_知识库/` / `02_读书笔记/` / `11_entities/` / `12_concepts/` / `03_问答区/` —— 中文目录保留 vault 浏览时的语义可读性,内部 wiki-link 全路径强制 |
 | **frontmatter 强约束** | 4 层 markdown(source / entity / concept / qa)各自有不同的强制字段 + 引号约定 + 类型约束,由 `lint-wiki` 周期性体检 |
-| **Log.md 倒序追加 + 自动入口** | `scripts/log-append.mjs` 把 5 个 skill 的写入收口,统一按 `10_schema/config.md §13.1` 倒序格式输出,人 / LLM 都能用 `grep "^## \[" Log.md \| tail -5` 解析 |
+| **Log.md 倒序追加 + 收尾必做** | 5 个 skill 各自在 SKILL.md 收尾步按 `10_schema/config.md §13.1` 倒序格式 append `Log.md`,人 / LLM 都能用 `grep "^## \[" Log.md \| tail -5` 解析 |
 | **plugin 升级 + vault 解耦** | init 时拷 `scripts/` 到 vault(白名单覆盖);资产 md 用 `copyIfMissing` 保留用户修改 —— 两类资源策略不同 |
 
 ---
@@ -118,7 +118,7 @@ plugin 的 5 类 markdown 笔记不是「LLM 凭空造出来的」——它们�
 |---|---|---|---|
 | [`00_模板/读书笔记模板.md`](../../00_模板/读书笔记模板.md) | source 笔记的**占位空壳** —— 含 5 字段 frontmatter + 4 段固定正文(摘要/重点摘录/我的思考/总结) | `sync-pdf-notes.mjs`(拷过去填占位)+ obsidian-collacting 阶段 2 sub agent(填充正文) | 人工偶改(改段名/加段要先升 schema) |
 | [`00_模板/标签词表.md`](../../00_模板/标签词表.md) | **标签体系 single source of truth** —— 4 轴(domain/layer/phase/maturity)枚举 + entity 子类 + concept 子类 + 三层 type×tags 互斥规则 | 全部 5 个 skill 的 sub agent 打标前必读;lint-wiki `tag-drift` 检查 | 人工维护(词表外新候选由 obsidian-collacting 在报告里汇总,用户显式确认后补入) |
-| [`00_模板/Log_Spec.md`](../../00_模板/Log_Spec.md) | **Log.md 写入唯一规范** —— §1 硬约束(不用 wiki 链接)+ §2 通用格式(倒序/H2 双空格/反引号路径)+ §3 4 skill 最小条目 | `scripts/log-append.mjs`(按 §2 格式输出);5 个 skill 收尾必须调 log-append | 人工偶改(加新 skill 最小条目) |
+| [`00_模板/Log_Spec.md`](../../00_模板/Log_Spec.md) | **Log.md 写入唯一规范** —— §1 硬约束(不用 wiki 链接)+ §2 通用格式(倒序/H2 双空格/反引号路径)+ §3 4 skill 最小条目 | 5 个 skill(按 §2 格式在 SKILL.md 收尾步 append) | 人工偶改(加新 skill 最小条目) |
 | [`00_模板/Index_Spec.md`](../../00_模板/Index_Spec.md) | **Index.md 写入唯一规范** —— §2 路径硬约束(必须 wiki-link,禁止 markdown link / 反引号)+ §3 表格结构 + §5 触发时机白名单 | obsidian-collacting 阶段 3 + llm-wiki-query 阶段 D4 | 人工偶改 |
 | [`00_模板/CLAUDE_Template.md`](../../00_模板/CLAUDE_Template.md) | **vault 端 CLAUDE.md 的注入段** —— 包含仓库性质 / 5 条铁律 / 身份 / 5 skill 协作约定 | `scripts/init-vault.mjs`(注入到 vault/CLAUDE.md,begin/end 包裹) | 人工维护(plugin 升级时 init 会 in-place 刷新 begin/end 中间内容) |
 
@@ -135,7 +135,7 @@ plugin 的 5 类 markdown 笔记不是「LLM 凭空造出来的」——它们�
 |---|---|---|
 | `读书笔记模板.md` | obsidian-collacting(强) / lint-wiki(中,只检查空段) | sync 脚本 cp 到 `02_读书笔记/<主题>/<name>.md`,sub agent Edit 占位字段 |
 | `标签词表.md` | obsidian-collacting(强,打标前必读)/ knowledge-graph-sync(强,entity/concept tags)/ llm-wiki-query(强,QA tags)/ lint-wiki(强,tag-drift 检查) | Read 全文锁定枚举;sub agent tags 字段仅从 §2 枚举取值 |
-| `Log_Spec.md` | 5 个 skill 全部 | `scripts/log-append.mjs` 内嵌格式约束(与 §2 一一对应) |
+| `Log_Spec.md` | 5 个 skill 全部 | SKILL.md 收尾步按 §2 通用格式 append(逻辑分散在各 skill 内部,无中央脚本入口) |
 | `Index_Spec.md` | obsidian-collacting(强) / llm-wiki-query(强) | 阶段 3 / D4 按 §3 表格 append 一行 |
 | `CLAUDE_Template.md` | llm-wiki-plugin-init(强) | init 时按 begin/end 包裹注入 vault/CLAUDE.md |
 
@@ -351,15 +351,15 @@ lint-wiki 触发:
 - `reviewed: true` 时,机器**只 append** `sources:` / `aliases:` / `## Mentions in Source`,不触碰正文
 - source 笔记 `状态: false` 重跑 ingest 整体覆盖;`状态: true` 走 append-only(见 [config.md §9-bis](../../10_schema/config.md))
 
-### 5.4 Log.md 倒序 + 自动入口
+### 5.4 Log.md 倒序 + 收尾必做
 
-**决策**:`scripts/log-append.mjs` 把 5 个 skill 的写入收口,统一按 `config.md §13.1` 倒序(最新在顶部)格式输出。
+**决策**:5 个 skill 收尾步按 `config.md §13.1` 倒序(最新在顶部)格式 append `Log.md`。
 
 **理由**:
 
 - karpathy 原文说 log 是时序的,用 `grep "^## \[" Log.md \| tail -5` 能取最近 5 条 → 倒序就是 tail -5 直接拿
-- 5 个 skill 各自收尾必须调,避免「用户没确认 Log 写入就丢记录」
-- 双入口(CLI + 函数内嵌):SKILL.md 调 CLI;`scripts/lint-wiki.mjs` 同进程内 `import` `appendLog()`
+- 5 个 skill 各自收尾必须 append,避免「用户没确认 Log 写入就丢记录」
+- **实现位置**:每个 SKILL.md 的 §"强制步骤 — 更新 Log.md" 段(没有中央脚本入口,逻辑分散在各 skill 内部)
 
 ### 5.5 v3 自动路径选择(SessionStart hook + 3 档 + state.json override)
 
@@ -479,7 +479,7 @@ f:\llm-wiki-plugin\
 - [ ] `skills/<name>/SKILL.md` 有 frontmatter(name / description)+ 触发条件段
 - [ ] `docs/superpowers/specs/spec-<name>.md` 存在,写清动机 / 行为契约 / 边界 / 测试
 - [ ] 涉及 IO 的部分走 `scripts/<name>.mjs` + 单测
-- [ ] 收尾调 `scripts/log-append.mjs`(CLI 或 `import`)
+- [ ] 收尾步按 Log_Spec.md §2 append Log.md(每个 SKILL.md 自带步骤)
 - [ ] vault 端 schema 改动同步到 `10_schema/config.md`
 - [ ] README 加 1 行触发词表 + 1 段说明
 - [ ] `package.json` 不需要(零运行时依赖)
@@ -492,7 +492,7 @@ f:\llm-wiki-plugin\
 |---|---|---|
 | `00_模板/读书笔记模板.md` | vault 端**所有**新建 source 笔记的字段 + 段结构;`scripts/sync-pdf-notes.mjs` 拷贝内容 | 同步改 `10_schema/config.md §2`(source 模板段);同步改 `00_模板/标签词表.md` 引用(若有);init 升级后老 vault 不会自动更新(cpIfMissing 保留用户修改) |
 | `00_模板/标签词表.md` | 全部 5 skill 的 sub agent 打标行为;lint-wiki `tag-drift` 检查;`scripts/lint-wiki.mjs` 的枚举校验 | 同步改 `10_schema/config.md §3`(词表段,引用指向本文件);新枚举不需要「回填老笔记」(老笔记的旧 tag 走 lint-wiki 异步捕获) |
-| `00_模板/Log_Spec.md` | 5 skill 的 log 条目格式;`scripts/log-append.mjs` 输出格式 | 同步改 `scripts/log-append.mjs`(与 §2 通用格式对齐);新 skill 要加 §3.x 最小条目 |
+| `00_模板/Log_Spec.md` | 5 skill 的 log 条目格式;`Log_Spec.md §2` 通用格式 | 同步改 `Log_Spec.md`(本来就是 SoT);新 skill 要加 §3.x 最小条目 |
 | `00_模板/Index_Spec.md` | obsidian-collacting / llm-wiki-query 的 index 条目 | 同步改 `obsidian-collacting/SKILL.md` 步骤 9 + `llm-wiki-query/SKILL.md` 阶段 D4 的渲染模板 |
 | `00_模板/CLAUDE_Template.md` | vault 端所有 CLAUDE.md 的注入段 | 同步改 `scripts/init-vault.mjs` 的 in-place 替换逻辑(已经是 begin/end 包裹,无需改脚本);老 vault 跑一次 init 自动 in-place 刷新 |
 
