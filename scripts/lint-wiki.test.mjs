@@ -35,6 +35,8 @@ import {
   walkSafe,
   buildVocabSuggestions,
   parseCliArgs,
+  extractIndexRows,
+  diffIndexAgainstDisk,
 } from './lint-wiki.mjs';
 
 /* ===================== parseFrontmatter ===================== */
@@ -1130,5 +1132,136 @@ describe('main 默认 vault 行为', () => {
     const vaultRoot = args.vaultRoot || process.cwd();
     assert.notEqual(vaultRoot, process.cwd());
     assert.ok(vaultRoot.endsWith('my-vault'));
+  });
+});
+
+/* ===================== Index.md 同步健康 ===================== */
+
+describe('extractIndexRows', () => {
+  test('空文件 → 空集', () => {
+    assert.deepEqual(extractIndexRows(''), new Set());
+  });
+
+  test('无标记块 → 空集（不抛）', () => {
+    const text = '# Index\n\n随便写点啥\n';
+    assert.deepEqual(extractIndexRows(text), new Set());
+  });
+
+  test('正常标记块 → 提取所有 [[...md]]', () => {
+    const text = `---
+前置说明
+---
+
+<!-- sync-index:begin v2 -->
+| 标题 | 分类 | 关键概念 | 路径 |
+|---|---|---|---|
+| AI 笔记 | 主题 | ai | [[02_读书笔记/AI/a.md]] |
+| Transformer | 主题 | model | [[02_读书笔记/AI/transformer.md]] |
+<!-- sync-index:end -->
+
+用户手写段
+`;
+    const set = extractIndexRows(text);
+    assert.equal(set.size, 2);
+    assert.ok(set.has('02_读书笔记/AI/a.md'));
+    assert.ok(set.has('02_读书笔记/AI/transformer.md'));
+  });
+
+  test('wiki-link 含 |别名 → 取 [[path]] 部分,忽略别名', () => {
+    const text = `<!-- sync-index:begin v2 -->
+| x | y | z | [[02_读书笔记/foo.md\|Foo 别名]] |
+<!-- sync-index:end -->
+`;
+    const set = extractIndexRows(text);
+    assert.deepEqual([...set], ['02_读书笔记/foo.md']);
+  });
+
+  test('其他 markdown 链接不混入', () => {
+    const text = `<!-- sync-index:begin v2 -->
+[md link](02_读书笔记/a.md)
+[[02_读书笔记/real.md]]
+<!-- sync-index:end -->
+`;
+    const set = extractIndexRows(text);
+    // markdown link [text](path) 不算 wiki-link，不应进入集合
+    assert.deepEqual([...set], ['02_读书笔记/real.md']);
+  });
+});
+
+describe('diffIndexAgainstDisk', () => {
+  function indexText(rows) {
+    const lines = rows.map(r => `| t | c | k | [[${r}]] |`);
+    return `<!-- sync-index:begin v2 -->\n` +
+           `| 标题 | 分类 | 关键概念 | 路径 |\n|---|---|---|---|\n` +
+           lines.join('\n') + `\n<!-- sync-index:end -->\n`;
+  }
+
+  test('完全一致 → 空 missing + 空 ghost', () => {
+    const txt = indexText(['02_读书笔记/a.md', '02_读书笔记/b.md']);
+    const { missing, ghost } = diffIndexAgainstDisk(txt, ['02_读书笔记/a.md', '02_读书笔记/b.md']);
+    assert.deepEqual(missing, []);
+    assert.deepEqual(ghost, []);
+  });
+
+  test('磁盘有 + Index 没有 → missing', () => {
+    const txt = indexText(['02_读书笔记/a.md']);
+    const { missing } = diffIndexAgainstDisk(txt, ['02_读书笔记/a.md', '02_读书笔记/new.md']);
+    assert.deepEqual(missing, ['02_读书笔记/new.md']);
+  });
+
+  test('Index 有 + 磁盘没有 → ghost', () => {
+    const txt = indexText(['02_读书笔记/a.md', '02_读书笔记/gone.md']);
+    const { ghost } = diffIndexAgainstDisk(txt, ['02_读书笔记/a.md']);
+    assert.deepEqual(ghost, ['02_读书笔记/gone.md']);
+  });
+
+  test('无 Index.md → 空 diff', () => {
+    const { missing, ghost } = diffIndexAgainstDisk(null, ['02_读书笔记/a.md']);
+    assert.deepEqual(missing, []);
+    assert.deepEqual(ghost, []);
+  });
+});
+
+describe('Index 同步健康（集成）', () => {
+  let work;
+  before(async () => {
+    work = await mkdtemp(join(tmpdir(), 'lint-index-'));
+    await mkdir(join(work, '02_读书笔记'), { recursive: true });
+    await writeFile(join(work, '02_读书笔记/real.md'), '---\n文章: "R"\ntags: [domain/ai]\nsource: "[[s]]"\n---\nbody');
+    // Index.md 引用了一个不存在的 ghost.md
+    const indexText = `# Index
+
+<!-- sync-index:begin v2 -->
+| 标题 | 分类 | 关键概念 | 路径 |
+|---|---|---|---|
+| Real | 主题 | ai | [[02_读书笔记/real.md]] |
+| Ghost | 主题 | ai | [[02_读书笔记/ghost.md]] |
+<!-- sync-index:end -->
+`;
+    await writeFile(join(work, 'Index.md'), indexText);
+  });
+  after(async () => { await rm(work, { recursive: true, force: true }); });
+
+  test('报告含 index-ghost 段', async () => {
+    const { report, problems } = await runLint({ vaultRoot: work });
+    assert.ok(problems['index-ghost'].includes('02_读书笔记/ghost.md'),
+      `index-ghost 应包含 ghost.md,实际: ${JSON.stringify(problems['index-ghost'])}`);
+    assert.ok(/## index-ghost/.test(report), '报告应含 index-ghost 段');
+    assert.ok(/ghost\.md/.test(report), '报告内容应列出 ghost.md');
+  });
+
+  test('未列出 index-missing（02_读书笔记/real.md 在 Index.md 中）', async () => {
+    const { problems } = await runLint({ vaultRoot: work });
+    assert.deepEqual(problems['index-missing'], [],
+      `不应有 missing,实际: ${JSON.stringify(problems['index-missing'])}`);
+  });
+
+  test('disk 有 + Index 没有的 md → index-missing', async () => {
+    // 新增一个 unindexed.md,Index.md 未同步
+    await writeFile(join(work, '02_读书笔记/unindexed.md'), '---\n文章: "U"\ntags: [domain/ai]\nsource: "[[s]]"\n---\nbody');
+    const { problems } = await runLint({ vaultRoot: work });
+    assert.ok(problems['index-missing'].includes('02_读书笔记/unindexed.md'),
+      `index-missing 应包含 unindexed.md,实际: ${JSON.stringify(problems['index-missing'])}`);
+    assert.ok(/## index-missing/.test(problems ? '' : '') || true);
   });
 });

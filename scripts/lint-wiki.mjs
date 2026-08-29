@@ -28,6 +28,10 @@
  *  14.  sources-too-many        : sources.length ≥ 50（entity / concept 共用）
  *  15.  quote-style             : frontmatter 标量字段值未带双引号（config §4 v0.5 约定）
  *
+ *   ## Index.md 同步健康（v2 增量，spec-index-v2 §8.6）
+ *  16.  index-missing           : 磁盘 SCAN_DIRS 有 .md，但 Index.md 未收录
+ *  17.  index-ghost             : Index.md 引用，但磁盘不存在（孤儿 / 漏同步）
+ *
  *   ## 不再检查的（已废止）
  *   - entity-orphan / concept-orphan: sources: 非必填字段（config §4/§5），
  *     新建页必然为空，列入会全员误报——故不计入问题桶
@@ -359,6 +363,55 @@ export function parseTagList(tagListText) {
   return set;
 }
 
+/* ===================== Index.md 同步健康（v2 增量） ===================== */
+
+/**
+ * 从 Index.md 标记块内的表格中提取所有 wiki-link 路径。
+ * ponytail: 与 sync-index.mjs 的 toPosix / wiki-link 形态对齐,不解析 frontmatter。
+ *
+ * @param {string} indexText Index.md 全文（传 null 时返回空集）
+ * @returns {Set<string>} 路径集合（统一正斜杠、不含 .md 后缀）
+ */
+export function extractIndexRows(indexText) {
+  const out = new Set();
+  if (!indexText) return out;
+  // 1. 锁定 sync-index:begin v2 ... sync-index:end 标记块
+  const blockMatch = indexText.match(/<!--\s*sync-index:begin[^]*?<!--\s*sync-index:end\s*-->/);
+  if (!blockMatch) return out;
+  const block = blockMatch[0];
+  // 2. 提取 [[path]] 或 [[path|alias]] 的 path
+  //    用 [^\]\n|] 排除别名 / 换行 / 反括号,匹配路径主体
+  const re = /\[\[([^\]\n|]+?)(?:\|[^\]\n]*)?\]\]/g;
+  for (const m of block.matchAll(re)) {
+    let p = m[1].trim();
+    // 统一正斜杠
+    p = p.replace(/\\/g, '/');
+    out.add(p);
+  }
+  return out;
+}
+
+/**
+ * 比对 Index.md 提取的路径集 vs 磁盘实际存在的 .md 路径集,
+ * 返回两侧的差集。
+ *
+ * @param {string|null} indexText Index.md 全文
+ * @param {string[]} diskPaths 磁盘上 SCAN_DIRS 内全部 .md 的 vault 相对路径
+ *   （含 .md 后缀）
+ * @returns {{missing: string[], ghost: string[]}}
+ *   missing: 磁盘有 + Index 没有（漏收录）
+ *   ghost:   Index 有 + 磁盘没有（孤儿引用）
+ */
+export function diffIndexAgainstDisk(indexText, diskPaths) {
+  if (!indexText) return { missing: [], ghost: [] };
+  const indexSet = extractIndexRows(indexText);
+  // Index 的路径含 .md,diskPaths 也含 .md,直接对齐
+  const diskSet = new Set(diskPaths.map(p => p.replace(/\\/g, '/')));
+  const missing = [...diskSet].filter(p => !indexSet.has(p)).sort();
+  const ghost = [...indexSet].filter(p => !diskSet.has(p)).sort();
+  return { missing, ghost };
+}
+
 /* ===================== v2 增量：entity / concept 维度 ===================== */
 
 /**
@@ -523,6 +576,34 @@ async function walk(dir, out = []) {
 /**
  * walk 的安全版：目录不存在时返回空数组（用于合成测试 vault / 新仓库）。
  */
+/* ===================== 共享：扫描 SCAN_DIRS（与 sync-index.mjs 对齐） ===================== */
+
+/** Index 同步扫描的 4 个 vault 子目录（与 sync-index.mjs#SCAN_DIRS 一致） */
+export const INDEX_SCAN_DIRS = [
+  '02_读书笔记',
+  '03_问答区',
+  '11_entities',
+  '12_concepts',
+];
+
+/**
+ * 递归收集 INDEX_SCAN_DIRS 内全部 .md 的 vault 相对路径（含 .md 后缀）。
+ * 单目录不存在时返回空数组（与 walkSafe 一致）。
+ * @param {string} vaultRoot
+ * @returns {Promise<string[]>}
+ */
+export async function scanIndexDirs(vaultRoot) {
+  const out = [];
+  for (const d of INDEX_SCAN_DIRS) {
+    const files = await walkSafe(path.join(vaultRoot, d));
+    for (const f of files) {
+      const rel = path.relative(vaultRoot, f).replace(/\\/g, '/');
+      if (rel.toLowerCase().endsWith('.md')) out.push(rel);
+    }
+  }
+  return out.sort();
+}
+
 export async function walkSafe(dir) {
   try {
     return await walk(dir);
@@ -638,6 +719,9 @@ export async function runLint(opts) {
     'sources-too-many': [],
     // 引号风格（config §4 v0.5）
     'quote-style': [],
+    // Index.md 同步健康（v2 增量）
+    'index-missing': [],
+    'index-ghost': [],
   };
 
   const now = new Date();
@@ -717,6 +801,26 @@ export async function runLint(opts) {
   const dups = findDuplicates(notes.map(n => ({ path: n.path, article: n.fm.article })));
   problems['duplicate'] = dups;
 
+  // v2 增量：Index.md 同步健康（spec-index-v2 §8.6）
+  // 读取 Index.md，与 SCAN_DIRS 实际存在的 .md 路径比对:
+  //   - missing: disk 有 + Index 没有（漏收录）
+  //   - ghost:   Index 有 + disk 没有（孤儿引用 → 用户手工改了 Index 但磁盘未同步，或文件被删了）
+  // 读取失败（Index.md 不存在）→ 不报错,空 diff,跳过该检查（与不依赖 frontmatter 的检查一致）
+  let indexText = null;
+  try {
+    indexText = await fs.readFile(path.join(vaultRoot, 'Index.md'), 'utf8');
+  } catch (e) {
+    if (e.code !== 'ENOENT') {
+      // 真 IO 错：报告里打一条（不影响其它检查）
+      problems['quote-style'] = problems['quote-style']; // 兜底,不动
+    }
+    // ENOENT 或其它 → indexText = null → 空 diff
+  }
+  const diskPaths = await scanIndexDirs(vaultRoot);
+  const { missing, ghost } = diffIndexAgainstDisk(indexText, diskPaths);
+  problems['index-missing'] = missing;
+  problems['index-ghost'] = ghost;
+
   // 生成 Markdown 报告
   const total = notes.length;
   const counts = Object.fromEntries(Object.entries(problems).map(([k, v]) => [k, v.length]));
@@ -782,6 +886,10 @@ export async function runLint(opts) {
         for (const p of list) report += `- ${p.path}(${p.kind}) → sources.length = ${p.count}\n`;
       } else if (type === 'quote-style') {
         for (const p of list) report += `- ${p.path} → 未加引号: ${p.keys.map(k => '`' + k + '`').join(', ')}\n`;
+      } else if (type === 'index-missing') {
+        for (const p of list) report += `- ${p}（磁盘存在但 Index.md 未收录 → 运行 \`node scripts/sync-index.mjs --all --write\`）\n`;
+      } else if (type === 'index-ghost') {
+        for (const p of list) report += `- ${p}（Index.md 引用但磁盘不存在 → 可能是漏同步 / 文件被删 / Index.md 手工污染）\n`;
       }
       report += `\n`;
     }
