@@ -308,10 +308,13 @@ v3 起, 召回路径**自动**由 `scripts/qmd-detect.mjs` 决定, LLM 仅按 sy
 
 写 vault root `.llm-wiki-query-state.json`:
 
+- `path_override`: `"grep"` / `"qmd"` / `"auto"` (缺省 = auto, 自动)
+- `引导_skipped_at`: ISO 8601 string, medium tier 跳过引导后写入 (可选)
+
 ```json
 {
-  "path_override": "grep",   // "grep" | "qmd" | "auto" (= 缺省, 自动)
-  "引导_skipped_at": "2026-08-29T10:00:00Z"   // 可选, medium tier 跳过引导后写入
+  "path_override": "grep",
+  "引导_skipped_at": "2026-08-29T10:00:00Z"
 }
 ```
 
