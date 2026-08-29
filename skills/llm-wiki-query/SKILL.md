@@ -246,7 +246,16 @@ tags:
 
 **触发条件：用户明示「归档」后才执行本步。**
 
-**索引**：在仓库根 `Index.md` append 一条索引条目（标题 / 分类 / `[[03_问答区/<主题>/<slug>.md]]` 路径）。必须、与主任务同次 commit 完成。
+**索引**：**严禁 LLM 手写** Index.md 行（spec-index-v2 §7）。正确路径：
+1. 写完 `03_问答区/<主题>/<slug>.md` 后，主对话调：
+   ```bash
+   cd <vaultRoot> && node scripts/sync-index.mjs --add 03_问答区/<主题>/<slug>.md --write
+   ```
+2. 或一次性全量重建：
+   ```bash
+   node scripts/sync-index.mjs --all --write
+   ```
+3. 完成后调 `node scripts/lint-wiki.mjs` 验收——无 `index-ghost` / `index-missing` 报错即与磁盘一致
 
 按 `00_模板/Log_Spec.md §2` 通用格式 + `§3.4` llm-wiki-query 最小条目（含 `召回方式` 字段）。**必须、与主任务同次 commit 完成。**
 

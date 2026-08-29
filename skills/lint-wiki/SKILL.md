@@ -9,7 +9,7 @@ description: lint、healthcheck、检查 vault、检查笔记、扫一遍、看�
 
 # 这个 skill 做什么
 
-**只读不写**——扫描 `02_读书笔记/` + `11_entities/` + `12_concepts/`（连同 `Log.md` / `Index.md` 用于 `log-backlinks` 检查），输出 15 类健康问题 + 1 节 **Vocab Suggestions（词表补全建议）** 到 `scripts/_lint-report.md`：
+**只读不写**——扫描 `02_读书笔记/` + `11_entities/` + `12_concepts/`（连同 `Log.md` / `Index.md` 用于 `log-backlinks` / `index-missing` / `index-ghost` 检查），输出 17 类健康问题 + 1 节 **Vocab Suggestions（词表补全建议）** 到 `scripts/_lint-report.md`：
 
 ### source 笔记（02_读书笔记/，6 类）
 
@@ -45,6 +45,13 @@ description: lint、healthcheck、检查 vault、检查笔记、扫一遍、看�
 | `entity-cross-dir-dup` | entity 与 concept 跨目录 normalize 同名（语义冲突） |
 | `sources-too-many` | entity / concept 的 `sources.length` ≥ 50（warning，建议合并） |
 | `log-backlinks` | 任一 vault 笔记（含 `02_读书笔记/` `11_entities/` `12_concepts/` `03_问答区/`）以 `[[wiki 链接]]` 或 frontmatter `source:` 指向仓库根 `Log.md`——与 `00_模板/Log_Spec.md §1` 硬约束相悖，污染知识图谱 |
+
+### Index.md 同步健康（v2 增量，spec-index-v2 §8.6）
+
+| 检查 | 含义 |
+|---|---|
+| `index-missing` | 磁盘 SCAN_DIRS 有 `.md`，但 `Index.md` 标记块内未收录（漏同步）→ 跑 `node scripts/sync-index.mjs --all --write` |
+| `index-ghost` | `Index.md` 标记块内引用，但磁盘不存在（孤儿 / 手工污染 / 文件已删） |
 
 ### 词表补全建议（1 节）
 
@@ -87,15 +94,17 @@ node scripts/lint-wiki.mjs [--stale-days=90] [--out=scripts/_lint-report.md] [--
 打开 `scripts/_lint-report.md`，按以下优先级处理：
 
 1. **tag-drift / entity-tag-drift / concept-tag-drift**：最高优先级，破坏词表一致性。手动补 tag 或建议入表
-2. **Vocab Suggestions**：报告节中"待分类"之外的桶 → 手动把候选补入 `00_模板/标签词表.md` 对应 §2/§3/§4。"待分类"桶需要先看来源文件、确认该写哪个 axis 再补
-3. **name-clash / cross-dir-dup**：合并候选，先 normalize 再去重
-4. **duplicate**：合并候选，路径不同但 `文章` 相同
-5. **missing-meta / missing-aliases**：补 frontmatter
-6. **orphan**：写反向引用 / 入 Index.md 让它被发现
-7. **stale**：复审，更新状态或删除
-8. **contradictions**：人工 review 双侧来源，决定保留或删除
-9. **sources-too-many**：warning 量级，提示合并 source 列表
-10. **log-backlinks**：error 量级，去掉指向 `Log.md` 的反向链接（或改纯文本引用）
+2. **index-missing**：跑 `node scripts/sync-index.mjs --all --write` 一键同步；或 `node scripts/sync-index.mjs --add <path> --write` 单条补
+3. **index-ghost**：检查是否是手工污染 / 文件已删；前者手工清理 Index.md 后重跑 `--all --write`；后者确认删除后可忽略
+4. **Vocab Suggestions**：报告节中"待分类"之外的桶 → 手动把候选补入 `00_模板/标签词表.md` 对应 §2/§3/§4。"待分类"桶需要先看来源文件、确认该写哪个 axis 再补
+5. **name-clash / cross-dir-dup**：合并候选，先 normalize 再去重
+6. **duplicate**：合并候选，路径不同但 `文章` 相同
+7. **missing-meta / missing-aliases**：补 frontmatter
+8. **orphan**：写反向引用 / 入 Index.md 让它被发现
+9. **stale**：复审，更新状态或删除
+10. **contradictions**：人工 review 双侧来源，决定保留或删除
+11. **sources-too-many**：warning 量级，提示合并 source 列表
+12. **log-backlinks**：error 量级，去掉指向 `Log.md` 的反向链接（或改纯文本引用）
 
 ## Phase 3：Log 摘要（必做）
 

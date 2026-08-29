@@ -37,17 +37,17 @@
   - `02_读书笔记/` 新增笔记数 + 路径列表
   - `11_entities/` 新建 / append 数 + slug 列表
   - `12_concepts/` 新建 / append 数 + slug 列表
-  - `Index.md` 追加 N 条
+  - `Index.md` 重建（**v2 起由 `node scripts/sync-index.mjs --all --write` 维护**, LLM 不再手写行）
   - 删除（如有）+ 原因
-- `行为`：按主题归档 + sub agent 写笔记（4 段 + frontmatter tags）+ 反链补全（## Related Pages + Mentions in Source）
+- `行为`：按主题归档 + sub agent 写笔记（4 段 + frontmatter tags）+ 反链补全（## Related Pages + Mentions in Source）+ `node scripts/sync-index.mjs --all --write` 重建 Index.md
 - `commit`
 - `YAGNI 边界`：刻意不做的事 + 原因
 
 ### 3.2 knowledge-graph-sync
 
 - `触发`
-- `改动范围`：存量 source 笔记 ## Related Pages 段数 + 路径列表；entity / concept 新建 / append 数
-- `行为`：Phase 1-4 简述（扫描 → 抽取 → 新建/append → 反链镜像）
+- `改动范围`：存量 source 笔记 ## Related Pages 段数 + 路径列表；entity / concept 新建 / append 数；Index.md 重建（v2 起由 `sync-index.mjs` 维护）
+- `行为`：Phase 1-7 简述（扫描 → 抽取 → 新建/append → 反链镜像 → 报告 → Index.md 同步 → Log）
 - `commit`
 
 ### 3.3 lint-wiki

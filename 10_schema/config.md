@@ -12,7 +12,7 @@
 03_问答区/          查询产物（llm-wiki-query skill 归档的问答笔记）—— 只读型
 11_entities/        实体页（人 / 组织 / 产品 / 项目 / 事件 / 地点）
 12_concepts/        概念页（理论 / 方法 / 标准 / 术语 / 现象 / 领域）
-Index.md            资料索引表（路由表，LLM 优先读此区）
+Index.md            资料索引表（路由表，LLM 优先读此区；v2 起由 `scripts/sync-index.mjs` 维护，LLM 禁手写）
 Log.md              操作流水
 Inbox/              新资料暂存区
   └── web_clipper/   浏览器剪藏暂存（Obsidian Web Clipper 写入，obsidian-collacting 入库）
@@ -79,7 +79,7 @@ Inbox/              新资料暂存区
 - 写入工具：obsidian-collacting sub agent 首次入库；knowledge-graph-sync 只读不改
 - 漂移检查：lint-wiki 引用词表 §2/§3/§4 枚举值，发现词表外值即报 tag-drift
 - 操作流水：obsidian-collacting / knowledge-graph-sync / lint-wiki / llm-wiki-query 任一收尾 → 主对话必须在同次 commit 内 append `Log.md` 一条（格式见 `00_模板/Log_Spec.md`）。4 skill 各自独立收尾
-  在 `02_读书笔记/` 或 `03_问答区/` 下新建笔记（仅 obsidian-collacting / llm-wiki-query 触发）→ 同次 commit 内 append `Index.md` 一条索引条目（格式见 `00_模板/Index_Spec.md`）
+  在 `02_读书笔记/` / `03_问答区/` / `11_entities/` / `12_concepts/` 下新建 / 删除笔记（任意 skill 触发）→ 同次 commit 内调 `` `node scripts/sync-index.mjs --all --write` `` 由脚本维护 `Index.md`（v2 起 LLM **禁止手写** Index.md 行；规则见 `docs/superpowers/specs/spec-index-v2.md`）
 
 ---
 

@@ -22,7 +22,8 @@ description: knowledge graph、同步反向引用、知识图谱同步
 - ❌ **不写新笔记**——笔记正文（摘要/重点摘录/我的思考）由 `obsidian-collacting` 技能负责
 - ❌ **不修改 frontmatter** 的 `source` / `tags` / `状态` 字段
 - ❌ **不启动 sub agent**——只读 md 文件，主对话直接处理
-- ❌ **不动 `01_知识库/`** 的归档 / `Index.md`
+- ❌ **不动 `01_知识库/`** 的归档
+- ❌ **不手写 `Index.md`**——见 Phase 6 强制步骤，由 `sync-index.mjs` 维护（spec-index-v2 §7）
 - ❌ **不修改 reviewed: true 的 entity/concept 页**——仅 append `sources:` 与 Mentions
 
 # 工作流
@@ -80,7 +81,22 @@ verbatim 引用规则（config §10）：
 4. 新建 / 追加了多少 entity/concept 页
 5. 是否有存量笔记未归入任何实体/概念（人工 review）
 
-6. **强制步骤 — 追加 Log**：在仓库根 `Log.md` 末尾 append 本次操作的 Log 条目（必须、与主任务同次 commit 完成）。格式严格按 `00_模板/Log_Spec.md §3` 要求。
+## Phase 6：强制步骤 — 同步 Index.md
+
+新增 / 删除 entity/concept 页后，Index.md 路由表会过期。**严禁 LLM 手写** Index.md 行（spec-index-v2 §7）。正确路径：
+
+```bash
+cd <vaultRoot> && node scripts/sync-index.mjs --all --write
+```
+
+脚本会按 `<!-- sync-index:begin v2 --> ... <!-- sync-index:end -->` 标记块原子重写 Index.md，
+Entities / Concepts 段（11_entities + 12_concepts）会按字母序同步。
+
+完成后调 `node scripts/lint-wiki.mjs` 验收——无 `index-ghost` / `index-missing` 报错即与磁盘一致。
+
+## Phase 7：强制步骤 — 追加 Log
+
+在仓库根 `Log.md` 末尾 append 本次操作的 Log 条目（必须、与主任务同次 commit 完成）。格式严格按 `00_模板/Log_Spec.md §3` 要求。
 
 # 注意事项
 
