@@ -159,6 +159,8 @@ node --test scripts/convert-office.test.mjs      # 11 cases
 
 **为什么不再走 qmd MCP：** 朴素 Grep + 多 anchor 召回对小 vault 够用（你的笔记规模还没到必须用 BM25/向量检索的程度），且零运行时依赖 / 零外部组件 / 零安装成本。未来若 vault 规模上去需要语义搜索，再起独立 skill 接入 qmd。
 
+**设计依据：** [reference/llm-wiki.md](reference/llm-wiki.md) §"Optional: CLI tools"——karpathy 明确说「at small scale the index file is enough, but as the wiki grows you want proper search」，qmd 是 wiki 长大的升级选项，不是默认。
+
 详见 spec：[docs/superpowers/specs/2026-08-23-query-skill-design.md](docs/superpowers/specs/2026-08-23-query-skill-design.md)。**注意**：该 spec 写于 v2（含 qmd MCP 路径），归档保留供考古；当前 SKILL.md 实现以朴素 Grep 为准。
 
 ## License
